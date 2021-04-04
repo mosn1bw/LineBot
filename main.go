@@ -21,6 +21,18 @@ import (
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
+var bot *linebot.Client
+
+func main() {
+	var err error
+	bot, err = linebot.New(os.Getenv("ChannelSecret"), os.Getenv("ChannelAccessToken"))
+	log.Println("Bot:", bot, " err:", err)
+	http.HandleFunc("/callback", callbackHandler)
+	port := os.Getenv("PORT")
+	addr := fmt.Sprintf(":%s", port)
+	http.ListenAndServe(addr, nil)
+}
+
 const (
 	ActionEventOpen        = "open"
 	ActionEventClose       = "close"
@@ -107,18 +119,6 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 		}
 	}
-}
-
-var bot *linebot.Client
-
-func main() {
-	var err error
-	bot, err = linebot.New(os.Getenv("ChannelSecret"), os.Getenv("ChannelAccessToken"))
-	log.Println("Bot:", bot, " err:", err)
-	http.HandleFunc("/callback", callbackHandler)
-	port := os.Getenv("PORT")
-	addr := fmt.Sprintf(":%s", port)
-	http.ListenAndServe(addr, nil)
 }
 
 func (bot *OperatorImpl) ReactToPostback(event *linebot.Event) error {
