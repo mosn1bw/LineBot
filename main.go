@@ -19,7 +19,13 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/pkg/errors"
+	"gitlab.com/sckacr/calltaxi/app"
+	"gitlab.com/sckacr/calltaxi/database"
+	"gitlab.com/sckacr/calltaxi/model"
 )
 
 var bot *linebot.Client
