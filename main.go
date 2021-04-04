@@ -251,7 +251,7 @@ func (bot *OperatorImpl) ReactToPostback(event *linebot.Event) error {
 			return errors.Wrap(err, "already finished")
 		}
 
-		if _, err := app.PassengerBot().PushMessage(
+		if _, err := bot.PassengerBot().PushMessage(
 			request.PassengerID,
 			linebot.NewTextMessage("配車の手続きが完了しました. "+when(data[1])),
 		).Do(); err != nil {
@@ -281,7 +281,7 @@ func (bot *OperatorImpl) ReactToPostback(event *linebot.Event) error {
 			return errors.Wrap(err, "failed to push message to operator")
 		}
 
-		if _, err := app.PassengerBot().PushMessage(
+		if _, err := bot.PassengerBot().PushMessage(
 			request.PassengerID,
 			linebot.NewTextMessage("申し訳ありません, 配車に失敗しました"),
 		).Do(); err != nil {
@@ -313,13 +313,13 @@ func when(c string) string {
 	return ""
 }
 
-func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
+func (bot *KitchenSink) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
 	switch message.Text {
 	case "profile":
 		if source.UserID != "" {
 			profile, err := bot.GetProfile(source.UserID).Do()
 			if err != nil {
-				return app.replyText(replyToken, err.Error())
+				return bot.replyText(replyToken, err.Error())
 			}
 			if _, err := bot.ReplyMessage(
 				replyToken,
@@ -329,10 +329,10 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 				return err
 			}
 		} else {
-			return app.replyText(replyToken, "Bot can't use profile API without user ID")
+			return bot.replyText(replyToken, "Bot can't use profile API without user ID")
 		}
 	case "buttons":
-		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
+		imageURL := bot.appBaseURL + "/assets/buttons/1040.jpg"
 		template := linebot.NewButtonsTemplate(
 			imageURL, "My button sample", "Hello, my button",
 			linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
@@ -359,7 +359,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 			return err
 		}
 	case "carousel":
-		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
+		imageURL := bot.appBaseURL + "/assets/buttons/1040.jpg"
 		template := linebot.NewCarouselTemplate(
 			linebot.NewCarouselColumn(
 				imageURL, "hoge", "fuga",
@@ -379,7 +379,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 			return err
 		}
 	case "image carousel":
-		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
+		imageURL := bot.appBaseURL + "/assets/buttons/1040.jpg"
 		template := linebot.NewImageCarouselTemplate(
 			linebot.NewImageCarouselColumn(
 				imageURL,
@@ -692,7 +692,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewImagemapMessage(
-				app.appBaseURL+"/assets/rich",
+				bot.appBaseURL+"/assets/rich",
 				"Imagemap alt text",
 				linebot.ImagemapBaseSize{1040, 1040},
 				linebot.NewURIImagemapAction("https://store.line.me/family/manga/en", linebot.ImagemapArea{0, 0, 520, 520}),
@@ -706,20 +706,20 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 	case "bye":
 		switch source.Type {
 		case linebot.EventSourceTypeUser:
-			return app.replyText(replyToken, "Bot can't leave from 1:1 chat")
+			return bot.replyText(replyToken, "Bot can't leave from 1:1 chat")
 		case linebot.EventSourceTypeGroup:
-			if err := app.replyText(replyToken, "Leaving group"); err != nil {
+			if err := bot.replyText(replyToken, "Leaving group"); err != nil {
 				return err
 			}
 			if _, err := bot.LeaveGroup(source.GroupID).Do(); err != nil {
-				return app.replyText(replyToken, err.Error())
+				return bot.replyText(replyToken, err.Error())
 			}
 		case linebot.EventSourceTypeRoom:
-			if err := app.replyText(replyToken, "Leaving room"); err != nil {
+			if err := bot.replyText(replyToken, "Leaving room"); err != nil {
 				return err
 			}
 			if _, err := bot.LeaveRoom(source.RoomID).Do(); err != nil {
-				return app.replyText(replyToken, err.Error())
+				return bot.replyText(replyToken, err.Error())
 			}
 		}
 	default:
