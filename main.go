@@ -1,3 +1,4 @@
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -316,11 +317,11 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 	switch message.Text {
 	case "profile":
 		if source.UserID != "" {
-			profile, err := app.bot.GetProfile(source.UserID).Do()
+			profile, err := bot.GetProfile(source.UserID).Do()
 			if err != nil {
 				return app.replyText(replyToken, err.Error())
 			}
-			if _, err := app.bot.ReplyMessage(
+			if _, err := bot.ReplyMessage(
 				replyToken,
 				linebot.NewTextMessage("Display name: "+profile.DisplayName),
 				linebot.NewTextMessage("Status message: "+profile.StatusMessage),
@@ -339,7 +340,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 			linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
 			linebot.NewMessageTemplateAction("Say message", "Rice=米"),
 		)
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewTemplateMessage("Buttons alt text", template),
 		).Do(); err != nil {
@@ -351,7 +352,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 			linebot.NewMessageTemplateAction("Yes", "Yes!"),
 			linebot.NewMessageTemplateAction("No", "No!"),
 		)
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewTemplateMessage("Confirm alt text", template),
 		).Do(); err != nil {
@@ -371,7 +372,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
 			),
 		)
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewTemplateMessage("Carousel alt text", template),
 		).Do(); err != nil {
@@ -397,7 +398,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 				linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
 			),
 		)
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewTemplateMessage("Image carousel alt text", template),
 		).Do(); err != nil {
@@ -410,7 +411,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 			linebot.NewDatetimePickerTemplateAction("time", "TIME", "time", "", "", ""),
 			linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
 		)
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewTemplateMessage("Datetime pickers alt text", template),
 		).Do(); err != nil {
@@ -451,7 +452,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 				},
 			},
 		}
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewFlexMessage("Flex message alt text", contents),
 		).Do(); err != nil {
@@ -520,7 +521,7 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 				},
 			},
 		}
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewFlexMessage("Flex message alt text", contents),
 		).Do(); err != nil {
@@ -681,14 +682,14 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 		if err != nil {
 			return err
 		}
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewFlexMessage("Flex message alt text", contents),
 		).Do(); err != nil {
 			return err
 		}
 	case "imagemap":
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewImagemapMessage(
 				app.appBaseURL+"/assets/rich",
@@ -710,20 +711,20 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 			if err := app.replyText(replyToken, "Leaving group"); err != nil {
 				return err
 			}
-			if _, err := app.bot.LeaveGroup(source.GroupID).Do(); err != nil {
+			if _, err := bot.LeaveGroup(source.GroupID).Do(); err != nil {
 				return app.replyText(replyToken, err.Error())
 			}
 		case linebot.EventSourceTypeRoom:
 			if err := app.replyText(replyToken, "Leaving room"); err != nil {
 				return err
 			}
-			if _, err := app.bot.LeaveRoom(source.RoomID).Do(); err != nil {
+			if _, err := bot.LeaveRoom(source.RoomID).Do(); err != nil {
 				return app.replyText(replyToken, err.Error())
 			}
 		}
 	default:
 		log.Printf("Echo message to %s: %s", replyToken, message.Text)
-		if _, err := app.bot.ReplyMessage(
+		if _, err := bot.ReplyMessage(
 			replyToken,
 			linebot.NewTextMessage(message.Text),
 		).Do(); err != nil {
