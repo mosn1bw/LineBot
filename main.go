@@ -43,9 +43,6 @@ func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 
 
-func hello() string {
-	return "Hello world!"
-}
 func (s *SelfIntro) handleSticker(message *linebot.StickerMessage, replyToken string) error {
 	if _, err := s.bot.ReplyMessage(
 		replyToken,
