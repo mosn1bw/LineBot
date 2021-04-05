@@ -31,6 +31,16 @@ func NewSelfIntro(channelSecret, channelToken string) (*SelfIntro, error) {
 	}, nil
 }
 
+func ParseMessage(sentence string) (string, string) {
+	hmm := seg.CutSearch(sentence, true)
+	for _, str := range hmm {
+		if value, exist := keywords[str]; exist {
+			return value, str
+		}
+	}
+	return "default", "NULL"
+}
+
 func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 	events, err := s.bot.ParseRequest(r)
 	if err != nil {
@@ -75,7 +85,7 @@ func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SelfIntro) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
-	domain, keyword := Message(message.Text)
+	domain, keyword := ParseMessage(message.Text)
 	switch domain {
 	case "w5":
 		works, err := readJSON("static/message/works.json")
