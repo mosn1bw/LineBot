@@ -1,4 +1,3 @@
-
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,20 +11,39 @@
 // limitations under the License.
 
 package main
-
 import (
+    	"bufio"
 	"fmt"
 	"log"
+    	"io"
+    	"time"
 	"net/http"
+	"os"
 	"strings"
+	"math/rand"
+	"io/ioutil"
 
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
 var bot *linebot.Client
+var admin string
+var url string
+var conn string
+var ppljoin string
+var b_day string
+var join_msg string
 
 func main() {
 	var err error
+	
+	admin = "ub5e4ae027d8d4a82736222b2a8dc77df"
+	url = "https://raw.githubusercontent.com/Yikaros/LineBotTemplate/master/images/"
+	conn = ""
+	ppljoin = ""
+	b_day = ""
+	join_msg = ""
+	
 	bot, err = linebot.New(os.Getenv("ChannelSecret"), os.Getenv("ChannelAccessToken"))
 	log.Println("Bot:", bot, " err:", err)
 	http.HandleFunc("/callback", callbackHandler)
@@ -34,709 +52,17 @@ func main() {
 	http.ListenAndServe(addr, nil)
 }
 
-const (
-	ActionEventOpen        = "open"
-	ActionEventClose       = "close"
-	ActionEventList        = "list"
-	ActionEventParticipate = "participate"
-	ActionEventLeave       = "leave"
-	ActionEventHelp        = "help"
-	ActionEventVote        = "vote"
-	ActionEventVoted       = "voted"
-	ActionEventStart       = "start"
-	ActionEventFinish      = "finish"
-	ActionEventCancel      = "cancel"
-)
-
-// TODO ファイルから読み出すように変更
-const HelpMessage = "このbotについて\nこのbotはLT会等で、参加者からアンケートを募集することを目的に作られています。\n\n以下のアクション一覧から利用したいコマンドを実行してください。"
-
-type Line struct {
-	Bot *linebot.Client
-}
-
-// New inject to domain services
-func NewLineBot(config *config.Line) *Line {
-	client, err := linebot.New(config.ChannelSecret, config.ChannelToken)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return &Line{client}
-}
-
-func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
-	log.Println("callback")
-	ctx := r.Context()
-	reqests, err := s.Bot.ParseRequest(r)
-	for _, req := range reqests {
-		fmt.Printf("%#v\n", req)
-		var response linebot.SendingMessage
-		switch req.Type {
-		case linebot.EventTypeMessage:
-			switch message := req.Message.(type) {
-			case *linebot.TextMessage:
-				switch message.Text {
-				// リッチメニューボタン
-				case ActionEventOpen:
-					response = s.getMessageOpenEvent(ctx, req)
-				case ActionEventClose:
-					response = s.getMessageCloseEvent(ctx, req)
-				case ActionEventList:
-					response = s.getMessageEvents(ctx, req)
-				case ActionEventVote:
-					response = s.getMessageVoteList(ctx, req)
-				case ActionEventLeave:
-					response = s.getMessageLeaveEvent(ctx, req)
-				case ActionEventHelp:
-					response = linebot.NewTextMessage(HelpMessage)
-				// 確認処理ボタン
-				case ActionEventStart:
-					response = s.getMessageStartEvent(ctx, req)
-				case ActionEventFinish:
-					response = s.getMessageFinishEvent(ctx, req)
-				case ActionEventCancel:
-					response = linebot.NewTextMessage("処理を中断しました")
-				default:
-					if strings.Contains(message.Text, ActionEventParticipate) {
-						splits := strings.Split(message.Text, " ")
-						log.Println(message.Text)
-						eventID := domain.EventID(splits[1])
-						response = s.getMessageParticipateEvent(ctx, req, eventID)
-					} else if strings.Contains(message.Text, ActionEventVoted) {
-						splits := strings.Split(message.Text, " ")
-						response = s.getMessageVoteEvent(ctx, req, splits[1])
-					} else {
-						response = linebot.NewTextMessage(message.Text)
-					}
-				}
-			}
-		case linebot.EventTypeFollow:
-			response = s.getMessageFollowAction(ctx, req)
-		}
-
-		// 全処理をここで一括
-		if _, err = s.Bot.ReplyMessage(req.ReplyToken, response).Do(); err != nil {
-			fmt.Println(err)
-		}
-	}
-}
-
-func (bot *OperatorImpl) ReactToPostback(event *linebot.Event) error {
-	var (
-		data         = strings.Split(event.Postback.Data, ":")
-		requestDao   = database.NewRequest(app.DB())
-		operatorDao  = database.NewOperator(app.DB())
-		passengerDao = database.NewPassenger(app.DB())
-	)
-
-	switch data[0] {
-	case "call":
-		request, err := requestDao.FindByID(data[1])
-		if err != nil {
-			return errors.Wrap(err, "failed to find request")
-		}
-
-		if request.Finished || request.OperatorID != "" {
-			_, err := bot.PushMessage(
-				event.Source.UserID,
-				linebot.NewTextMessage(
-					"申し訳ありません, 他の方が先に申し込みました",
-				),
-			).Do()
-
-			return err
-		}
-
-		request.OperatorID = event.Source.UserID
-
-		request, err = requestDao.Update(request)
-		if err != nil {
-			return errors.Wrap(err, "failed to update request")
-		}
-
-		operators, err := operatorDao.FindAll()
-		if err != nil {
-			return errors.Wrap(err, "failed to find all operators")
-		}
-
-		to := make([]string, 0)
-		for _, operator := range operators {
-			if operator.UserID != request.OperatorID {
-				to = append(to, operator.UserID)
-			}
-		}
-
-		if _, err := bot.Multicast(
-			to,
-			linebot.NewTextMessage(
-				"締め切りました",
-			),
-		).Do(); err != nil {
-			errors.Wrap(err, "failed to multicast")
-		}
-
-		passenger, err := passengerDao.FindByUserID(request.PassengerID)
-		if err != nil {
-			return errors.Wrap(err, "failed to find passenger")
-		}
-
-		if _, err := bot.ReplyMessage(
-			event.ReplyToken,
-			linebot.NewTextMessage(
-				"ご協力ありがとうございます\n"+
-					passenger.Name+"様名義で"+
-					request.Address+"にタクシーを呼んでください\n"+
-					"電話番号は03-5755-2151です\n"+
-					"タクシーが到着するまでの時間も聞いてください",
-			),
-		).Do(); err != nil {
-			return errors.Wrap(err, "failed to reply message to operator")
-		}
-
-		if _, err := bot.PushMessage(
-			request.OperatorID,
-			linebot.NewTemplateMessage(
-				"時間の確認",
-				linebot.NewButtonsTemplate(
-					"",
-					"時間の確認",
-					"タクシーは何分で到着しますか",
-					linebot.NewPostbackAction(
-						"5分以内",
-						"finish:a:"+request.ID,
-						"5分以内",
-						"",
-					),
-					linebot.NewPostbackAction(
-						"10分以内",
-						"finish:b:"+request.ID,
-						"10分以内",
-						"",
-					),
-					linebot.NewPostbackAction(
-						"15分以内",
-						"finish:c:"+request.ID,
-						"15分以内",
-						"",
-					),
-					linebot.NewPostbackAction(
-						"15分以上",
-						"finish:d:"+request.ID,
-						"15分以上",
-						"",
-					),
-				),
-			).WithQuickReplies(linebot.NewQuickReplyItems(
-				linebot.NewQuickReplyButton(
-					"",
-					linebot.NewPostbackAction(
-						"配車に失敗",
-						"error:"+request.ID,
-						"配車に失敗",
-						"",
-					),
-				),
-			)),
-		).Do(); err != nil {
-			return errors.Wrap(err, "failed to push message to operator")
-		}
-	case "finish":
-		request, err := requestDao.FindByID(data[2])
-		if err != nil {
-			return errors.Wrap(err, "failed to find request")
-		}
-
-		if request.Finished {
-			return errors.Wrap(err, "already finished")
-		}
-
-		if _, err := bot.PassengerBot().PushMessage(
-			request.PassengerID,
-			linebot.NewTextMessage("配車の手続きが完了しました. "+when(data[1])),
-		).Do(); err != nil {
-			return errors.Wrap(err, "failed to push message to passenger")
-		}
-
-		request.Finished = true
-
-		if _, err := requestDao.Update(request); err != nil {
-			return errors.Wrap(err, "failed to update request")
-		}
-
-	case "error":
-		request, err := requestDao.FindByID(data[1])
-		if err != nil {
-			return errors.Wrap(err, "failed to find request")
-		}
-
-		if request.Finished {
-			return errors.Wrap(err, "already finished")
-		}
-
-		if _, err := bot.PushMessage(
-			request.OperatorID,
-			linebot.NewTextMessage("残念です"),
-		).Do(); err != nil {
-			return errors.Wrap(err, "failed to push message to operator")
-		}
-
-		if _, err := bot.PassengerBot().PushMessage(
-			request.PassengerID,
-			linebot.NewTextMessage("申し訳ありません, 配車に失敗しました"),
-		).Do(); err != nil {
-			return errors.Wrap(err, "failed to push message to passenger")
-		}
-
-		request.Finished = true
-
-		if _, err := requestDao.Update(request); err != nil {
-			return errors.Wrap(err, "failed to update request")
-		}
-	}
-
-	return nil
-}
-
-func when(c string) string {
-	switch c {
-	case "a":
-		return "5分以内にタクシーが到着します, お待ちください"
-	case "b":
-		return "10分以内にタクシーが到着します, お待ちください"
-	case "c":
-		return "15分以内にタクシーが到着します, お待ちください"
-	case "d":
-		return "タクシーの到着には15分以上かかります, しばらくお待ちください"
-	}
-
-	return ""
-}
-
-func (bot *KitchenSink) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
-	switch message.Text {
-	case "profile":
-		if source.UserID != "" {
-			profile, err := bot.GetProfile(source.UserID).Do()
-			if err != nil {
-				return bot.replyText(replyToken, err.Error())
-			}
-			if _, err := bot.ReplyMessage(
-				replyToken,
-				linebot.NewTextMessage("Display name: "+profile.DisplayName),
-				linebot.NewTextMessage("Status message: "+profile.StatusMessage),
-			).Do(); err != nil {
-				return err
-			}
-		} else {
-			return bot.replyText(replyToken, "Bot can't use profile API without user ID")
-		}
-	case "buttons":
-		imageURL := bot.appBaseURL + "/assets/buttons/1040.jpg"
-		template := linebot.NewButtonsTemplate(
-			imageURL, "My button sample", "Hello, my button",
-			linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
-			linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", "hello こんにちは"),
-			linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
-			linebot.NewMessageTemplateAction("Say message", "Rice=米"),
-		)
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Buttons alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	case "confirm":
-		template := linebot.NewConfirmTemplate(
-			"Do it?",
-			linebot.NewMessageTemplateAction("Yes", "Yes!"),
-			linebot.NewMessageTemplateAction("No", "No!"),
-		)
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Confirm alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	case "carousel":
-		imageURL := bot.appBaseURL + "/assets/buttons/1040.jpg"
-		template := linebot.NewCarouselTemplate(
-			linebot.NewCarouselColumn(
-				imageURL, "hoge", "fuga",
-				linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
-				linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", ""),
-			),
-			linebot.NewCarouselColumn(
-				imageURL, "hoge", "fuga",
-				linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
-				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
-			),
-		)
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Carousel alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	case "image carousel":
-		imageURL := bot.appBaseURL + "/assets/buttons/1040.jpg"
-		template := linebot.NewImageCarouselTemplate(
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewURITemplateAction("Go to LINE", "https://line.me"),
-			),
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", ""),
-			),
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
-			),
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
-			),
-		)
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Image carousel alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	case "datetime":
-		template := linebot.NewButtonsTemplate(
-			"", "", "Select date / time !",
-			linebot.NewDatetimePickerTemplateAction("date", "DATE", "date", "", "", ""),
-			linebot.NewDatetimePickerTemplateAction("time", "TIME", "time", "", "", ""),
-			linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
-		)
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Datetime pickers alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	case "flex":
-		// {
-		//   "type": "bubble",
-		//   "body": {
-		//     "type": "box",
-		//     "layout": "horizontal",
-		//     "contents": [
-		//       {
-		//         "type": "text",
-		//         "text": "Hello,"
-		//       },
-		//       {
-		//         "type": "text",
-		//         "text": "World!"
-		//       }
-		//     ]
-		//   }
-		// }
-		contents := &linebot.BubbleContainer{
-			Type: linebot.FlexContainerTypeBubble,
-			Body: &linebot.BoxComponent{
-				Type:   linebot.FlexComponentTypeBox,
-				Layout: linebot.FlexBoxLayoutTypeHorizontal,
-				Contents: []linebot.FlexComponent{
-					&linebot.TextComponent{
-						Type: linebot.FlexComponentTypeText,
-						Text: "Hello,",
-					},
-					&linebot.TextComponent{
-						Type: linebot.FlexComponentTypeText,
-						Text: "World!",
-					},
-				},
-			},
-		}
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewFlexMessage("Flex message alt text", contents),
-		).Do(); err != nil {
-			return err
-		}
-	case "flex carousel":
-		// {
-		//   "type": "carousel",
-		//   "contents": [
-		//     {
-		//       "type": "bubble",
-		//       "body": {
-		//         "type": "box",
-		//         "layout": "vertical",
-		//         "contents": [
-		//           {
-		//             "type": "text",
-		//             "text": "First bubble"
-		//           }
-		//         ]
-		//       }
-		//     },
-		//     {
-		//       "type": "bubble",
-		//       "body": {
-		//         "type": "box",
-		//         "layout": "vertical",
-		//         "contents": [
-		//           {
-		//             "type": "text",
-		//             "text": "Second bubble"
-		//           }
-		//         ]
-		//       }
-		//     }
-		//   ]
-		// }
-		contents := &linebot.CarouselContainer{
-			Type: linebot.FlexContainerTypeCarousel,
-			Contents: []*linebot.BubbleContainer{
-				&linebot.BubbleContainer{
-					Type: linebot.FlexContainerTypeBubble,
-					Body: &linebot.BoxComponent{
-						Type:   linebot.FlexComponentTypeBox,
-						Layout: linebot.FlexBoxLayoutTypeVertical,
-						Contents: []linebot.FlexComponent{
-							&linebot.TextComponent{
-								Type: linebot.FlexComponentTypeText,
-								Text: "First bubble",
-							},
-						},
-					},
-				},
-				&linebot.BubbleContainer{
-					Type: linebot.FlexContainerTypeBubble,
-					Body: &linebot.BoxComponent{
-						Type:   linebot.FlexComponentTypeBox,
-						Layout: linebot.FlexBoxLayoutTypeVertical,
-						Contents: []linebot.FlexComponent{
-							&linebot.TextComponent{
-								Type: linebot.FlexComponentTypeText,
-								Text: "Second bubble",
-							},
-						},
-					},
-				},
-			},
-		}
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewFlexMessage("Flex message alt text", contents),
-		).Do(); err != nil {
-			return err
-		}
-	case "flex json":
-		jsonString := `{
-  "type": "bubble",
-  "hero": {
-    "type": "image",
-    "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png",
-    "size": "full",
-    "aspectRatio": "20:13",
-    "aspectMode": "cover",
-    "action": {
-      "type": "uri",
-      "uri": "http://linecorp.com/"
-    }
-  },
-  "body": {
-    "type": "box",
-    "layout": "vertical",
-    "contents": [
-      {
-        "type": "text",
-        "text": "Brown Cafe",
-        "weight": "bold",
-        "size": "xl"
-      },
-      {
-        "type": "box",
-        "layout": "baseline",
-        "margin": "md",
-        "contents": [
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gray_star_28.png"
-          },
-          {
-            "type": "text",
-            "text": "4.0",
-            "size": "sm",
-            "color": "#999999",
-            "margin": "md",
-            "flex": 0
-          }
-        ]
-      },
-      {
-        "type": "box",
-        "layout": "vertical",
-        "margin": "lg",
-        "spacing": "sm",
-        "contents": [
-          {
-            "type": "box",
-            "layout": "baseline",
-            "spacing": "sm",
-            "contents": [
-              {
-                "type": "text",
-                "text": "Place",
-                "color": "#aaaaaa",
-                "size": "sm",
-                "flex": 1
-              },
-              {
-                "type": "text",
-                "text": "Miraina Tower, 4-1-6 Shinjuku, Tokyo",
-                "wrap": true,
-                "color": "#666666",
-                "size": "sm",
-                "flex": 5
-              }
-            ]
-          },
-          {
-            "type": "box",
-            "layout": "baseline",
-            "spacing": "sm",
-            "contents": [
-              {
-                "type": "text",
-                "text": "Time",
-                "color": "#aaaaaa",
-                "size": "sm",
-                "flex": 1
-              },
-              {
-                "type": "text",
-                "text": "10:00 - 23:00",
-                "wrap": true,
-                "color": "#666666",
-                "size": "sm",
-                "flex": 5
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "footer": {
-    "type": "box",
-    "layout": "vertical",
-    "spacing": "sm",
-    "contents": [
-      {
-        "type": "button",
-        "style": "link",
-        "height": "sm",
-        "action": {
-          "type": "uri",
-          "label": "CALL",
-          "uri": "https://linecorp.com"
-        }
-      },
-      {
-        "type": "button",
-        "style": "link",
-        "height": "sm",
-        "action": {
-          "type": "uri",
-          "label": "WEBSITE",
-          "uri": "https://linecorp.com"
-        }
-      },
-      {
-        "type": "spacer",
-        "size": "sm"
-      }
-    ],
-    "flex": 0
-  }
-}`
-		contents, err := linebot.UnmarshalFlexMessageJSON([]byte(jsonString))
-		if err != nil {
-			return err
-		}
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewFlexMessage("Flex message alt text", contents),
-		).Do(); err != nil {
-			return err
-		}
-	case "imagemap":
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewImagemapMessage(
-				bot.appBaseURL+"/assets/rich",
-				"Imagemap alt text",
-				linebot.ImagemapBaseSize{1040, 1040},
-				linebot.NewURIImagemapAction("https://store.line.me/family/manga/en", linebot.ImagemapArea{0, 0, 520, 520}),
-				linebot.NewURIImagemapAction("https://store.line.me/family/music/en", linebot.ImagemapArea{520, 0, 520, 520}),
-				linebot.NewURIImagemapAction("https://store.line.me/family/play/en", linebot.ImagemapArea{0, 520, 520, 520}),
-				linebot.NewMessageImagemapAction("URANAI!", linebot.ImagemapArea{520, 520, 520, 520}),
-			),
-		).Do(); err != nil {
-			return err
-		}
-	case "bye":
-		switch source.Type {
-		case linebot.EventSourceTypeUser:
-			return bot.replyText(replyToken, "Bot can't leave from 1:1 chat")
-		case linebot.EventSourceTypeGroup:
-			if err := bot.replyText(replyToken, "Leaving group"); err != nil {
-				return err
-			}
-			if _, err := bot.LeaveGroup(source.GroupID).Do(); err != nil {
-				return bot.replyText(replyToken, err.Error())
-			}
-		case linebot.EventSourceTypeRoom:
-			if err := bot.replyText(replyToken, "Leaving room"); err != nil {
-				return err
-			}
-			if _, err := bot.LeaveRoom(source.RoomID).Do(); err != nil {
-				return bot.replyText(replyToken, err.Error())
-			}
-		}
-	default:
-		log.Printf("Echo message to %s: %s", replyToken, message.Text)
-		if _, err := bot.ReplyMessage(
-			replyToken,
-			linebot.NewTextMessage(message.Text),
-		).Do(); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	events, err := bot.ParseRequest(r)
-
+	
+	var list string
+	var price string
+	var stock string
+	var food string
+	var uid string
+	var list_array []string
+	var user_array []string
+	var av_array []string
 	if err != nil {
 		if err == linebot.ErrInvalidSignature {
 			w.WriteHeader(400)
@@ -745,19 +71,400 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	
+	fi, err := os.Open("buffer/list.txt")
+    	if err != nil {
+        	fmt.Printf("Error: %s\n", err)
+        	return
+    	}
+    	defer fi.Close()
 
+    	br := bufio.NewReader(fi)
+    	for {
+        	a, _, c := br.ReadLine()
+        	if c == io.EOF {
+            	break
+        	}
+		list = list + "&" + string(a)
+    	}
+	list_array = strings.Split(list, "&")
+	fi2, err2 := os.Open("buffer/userlist.txt")
+    	if err2 != nil {
+        	fmt.Printf("Error: %s\n", err2)
+        	return
+    	}
+    	defer fi2.Close()
+	list = ""
+    	br2 := bufio.NewReader(fi2)
+    	for {
+        	a, _, c := br2.ReadLine()
+        	if c == io.EOF {
+            	break
+        	}
+		list = list + "@#@" + string(a)
+    	}
+	user_array = strings.Split(list, "@#@")
+	
+	
+	fi3, err3 := os.Open("buffer/LoveLove.txt")
+    	if err3 != nil {
+        	fmt.Printf("Error: %s\n", err3)
+        	return
+    	}
+    	defer fi3.Close()
+	list = ""
+    	br3 := bufio.NewReader(fi3)
+    	for {
+        	a, _, c := br3.ReadLine()
+        	if c == io.EOF {
+            	break
+        	}
+		list = list + "@#@" + string(a)
+    	}
+	av_array = strings.Split(list, "@#@")
+	
+	
 	for _, event := range events {
 		if event.Type == linebot.EventTypeMessage {
+			var cow string
+			r := rand.New(rand.NewSource(time.Now().UnixNano()))
+			cow = url + "cow/" + fmt.Sprintf("%d", r.Intn(11))  + ".jpg"
+
 			switch message := event.Message.(type) {
 			case *linebot.TextMessage:
-				quota, err := bot.GetMessageQuota().Do()
-				if err != nil {
-					log.Println("Quota err:", err)
+				//抓user id跟資料
+				// 0 ID
+				// 1 客戶代號
+				// 2 姓名
+				// 3 生日
+				// 4 喜好
+				// 5 電話
+				// 6 通訊狀態
+				uid = event.Source.UserID
+				e:=0
+				var profile []string
+				for e<=len(user_array)-1{
+					var menu []string
+					menu = strings.Split(user_array[e], " & ")
+					if menu[0] == uid{
+						profile = strings.Split(user_array[e], " & ")
+						break
+					}
+					e++
 				}
-				if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.ID+":"+message.Text+" OK! remain message:"+strconv.FormatInt(quota.Value, 10))).Do(); err != nil {
-					log.Print(err)
+				if ((conn!="")&&((uid==admin)||(uid==conn))){
+					switch{
+						case uid==admin:
+							if message.Text=="/bye"{
+								for e<=len(user_array)-1{
+									var menu []string
+									menu = strings.Split(user_array[e], " & ")
+									if menu[0] == conn{
+										profile = strings.Split(user_array[e], " & ")
+										break
+									}
+									e++
+								}
+								conn = ""
+								bot.PushMessage(admin,linebot.NewTextMessage("已與"+profile[2]+"離線")).Do() 
+								bot.PushMessage(conn,linebot.NewTextMessage("跟老闆結束通話囉")).Do() 
+							}else{
+								bot.PushMessage(conn,linebot.NewTextMessage(message.Text)).Do() 
+							}
+						case uid==conn:
+							bot.PushMessage(admin,linebot.NewTextMessage(profile[2] + "說：" + message.Text)).Do() 
+					}
+				}else
+				{
+					switch {
+						case message.Text=="e14":
+							d1 := []byte("hello\ngo\n")
+							err := ioutil.WriteFile("buffer/test", d1, 0644)
+						    	if err != nil {
+								fmt.Printf("Error: %s\n", err)
+								return
+							}
+						case Contains(message.Text,"e13"):
+							template := linebot.NewConfirmTemplate("大家覺得艾魯是不是該刪掉刀塔?", linebot.NewMessageTemplateAction("是", "是"),linebot.NewMessageTemplateAction("4", "4"))
+							messgage := linebot.NewTemplateMessage("Sorry :(, please update your app.", template)
+							bot.ReplyMessage(event.ReplyToken, messgage).Do()
+						case Contains(message.Text,"e15"):
+							//影片總數
+							av_count := 9
+							var av_rnd [4]int
+							
+							av_rnd[0] = r.Intn(av_count)+1
+							s:=1
+							for s<=3{
+								av_rnd[s]=0
+								rnd:=r.Intn(av_count)+1
+								sc:=0
+								for sc <= s-1{
+									if av_rnd[sc]==rnd{
+										av_rnd[s]=-1
+										break
+									}
+									sc++
+								}
+								if av_rnd[s]==0{
+									av_rnd[s] = rnd
+									s++
+								}
+							}
+							
+							//隨機取三
+							var av0 []string
+							av0 = strings.Split(av_array[av_rnd[0]], "@@")
+							var av1 []string
+							av1 = strings.Split(av_array[av_rnd[1]], "@@")
+							var av2 []string
+							av2 = strings.Split(av_array[av_rnd[2]], "@@")
+							
+						/** debug用
+							var avtest [3]string
+							avtest[0]=fmt.Sprintf("%d", av_rnd[0])
+							avtest[1]=fmt.Sprintf("%d", av_rnd[1])
+							avtest[2]=fmt.Sprintf("%d", av_rnd[2])
+							alltest := avtest[0]+avtest[1]+avtest[2]
+						
+							bot.PushMessage(admin, linebot.NewTextMessage(alltest)).Do() 
+						*/
+							template := linebot.NewCarouselTemplate(
+								linebot.NewCarouselColumn(
+									url+"/LoveLove/" + av0[1], av0[2], av0[3],
+									linebot.NewURITemplateAction("我要幹死他!!", av0[4]),
+								),
+								linebot.NewCarouselColumn(
+									url+"/LoveLove/" + av1[1], av1[2], av1[3],
+									linebot.NewURITemplateAction("我要幹死他!!", av1[4]),
+								),
+								linebot.NewCarouselColumn(
+									url+"/LoveLove/" + av2[1], av2[2], av2[3],
+									linebot.NewURITemplateAction("我要幹死他!!", av2[4]),
+								),
+							)
+							messgage := linebot.NewTemplateMessage("Sorry :(, please update your app.", template)
+							bot.ReplyMessage(event.ReplyToken, messgage).Do() 
+						case Contains(message.Text,"e10")||Contains(message.Text,"菜單")||message.Text=="我想買菜":
+							
+							template := linebot.NewCarouselTemplate(
+								linebot.NewCarouselColumn(
+									url + "/vegetable/gau.jpg", "高麗菜", "一斤50元，起源韓國，中國製造",
+									linebot.NewMessageTemplateAction("我要買這個!!", "我要買高麗菜"),
+								),
+								linebot.NewCarouselColumn(
+									url + "/vegetable/hua.jpg", "花椰菜", "一斤55元，上面有蟲的部分最好吃",
+									linebot.NewMessageTemplateAction("我要買這個!!", "我要買花椰菜"),
+								),
+							)
+							messgage := linebot.NewTemplateMessage("Sorry :(, please update your app.", template)
+							bot.ReplyMessage(event.ReplyToken, messgage).Do() 
+						case Contains(message.Text,"e12")||message.Text=="我想買魚":
+							template := linebot.NewCarouselTemplate(
+								linebot.NewCarouselColumn(
+									url + "/fish/bluef.jpg", "青斑", "一斤330元，物美價廉，最適合一般家庭",
+									linebot.NewMessageTemplateAction("我要買這個!!", "我要買青斑"),
+								),
+								linebot.NewCarouselColumn(
+									url + "/fish/dragontiger.jpg", "龍虎斑", "一斤350元，Q彈鮮嫩，最適合挑嘴的老饕",
+									linebot.NewMessageTemplateAction("我要買這個!!", "我要買龍虎斑"),
+								),
+							)
+							messgage := linebot.NewTemplateMessage("Sorry :(, please update your app.", template)
+							bot.ReplyMessage(event.ReplyToken, messgage).Do() 
+						case Contains(message.Text,"e11")||Contains(message.Text,"幫我查id"):
+							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(uid)).Do() 
+						case Contains(message.Text,"幫我查群組ID")||Contains(message.Text,"幫我查群組id"):
+							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(event.Source.GroupID)).Do() 
+						case ppljoin != "":
+							join_msg = ppljoin + " " + message.Text
+							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text + "嗎? 好的，那請問您的生日是幾月幾號呢?")).Do() 
+							ppljoin = ""
+							b_day = "1"
+						case b_day != "":
+							join_msg = join_msg + " " + message.Text
+							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.Text + "嗎? 好，我幫你傳訊息給菜市場管理員請他幫你審核一下，請耐心等候喔，謝謝")).Do() 
+							bot.PushMessage(admin,linebot.NewTextMessage(join_msg)).Do() 
+							b_day = ""
+							join_msg = ""
+						case message.Text=="e9":
+							if len(profile) > 0{
+								bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(profile[2] + "你已經是菜市場的會員囉，不用再申請加入啦")).Do()
+							}else{
+								ppljoin = uid
+								bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要加入Protoss菜市場嗎? 請問您叫什麼名字呢?")).Do() 
+							}
+	//賣菜的code
+						case Contains(message.Text,"e8")||Contains(message.Text,"葉"):						
+							food = ""
+							switch{
+								case Contains(message.Text,"高麗菜"):
+									food = "高麗菜"
+								case Contains(message.Text,"小白菜"):
+									food = "小白菜"
+								case Contains(message.Text,"花椰菜"):
+									food = "花椰菜"
+								case Contains(message.Text,"地瓜葉"):
+									food = "地瓜葉"
+
+							}
+							if food != ""{
+								i:=0
+								for i<=len(list_array){
+									var menu []string
+									menu = strings.Split(list_array[i], " ")
+									if menu[0] == food{
+										price=menu[1]
+										stock=menu[2]
+										break
+									}
+									i++
+								}
+								switch{
+									case Contains(message.Text,"一斤多少")||Contains(message.Text,"多少錢")||Contains(message.Text,"怎麼賣")||Contains(message.Text,"怎麼算"):
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(food + "一斤" + price)).Do() 
+									case Contains(message.Text,"要買"):
+										/**if len(profile) > 0{
+											bot.PushMessage(admin,linebot.NewTextMessage(profile[1] + profile[2] + "要買" + food)).Do() 
+											bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(food + "嗎? 我已經幫你聯絡老闆了，晚點他就會主動跟你聯繫，請耐心等一下喔")).Do()
+										}else{
+											bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買菜嗎? 可是你好像還不是我們菜市場的會員捏，麻煩跟管理員聯繫幫你加入菜市場會員，會員才有特別優惠喔!!")).Do() 	
+										}**/
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買" + food + "嗎? 趕快撥打 0909 022 890 跟鄉下小孩-張耀東買菜喔!!")).Do()
+								}
+							}else{
+								if Contains(message.Text,"e3"){
+									/**if len(profile) > 0{
+										bot.PushMessage(admin,linebot.NewTextMessage(profile[1] + profile[2] + "要買菜")).Do() 
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買菜嗎? 我已經幫你聯絡老闆了，晚點他就會主動跟你聯繫，請耐心等一下喔")).Do() 	
+									}else{
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買菜嗎? 可是你好像還不是我們菜市場的會員捏，麻煩跟管理員聯繫幫你加入菜市場會員，會員才有特別優惠喔!!")).Do() 	
+									}**/
+									bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買菜嗎? 趕快撥打 0909 022 890 跟鄉下小孩-張耀東買菜喔!!")).Do()
+								}
+							}
+	//石斑魚的code
+						case Contains(message.Text,"e2")||Contains(message.Text,"班"):
+							food = ""
+							switch{
+								case Contains(message.Text,"龍虎"):
+									food = "龍虎石斑"
+								case Contains(message.Text,"青"):
+									food = "青斑"
+								case Contains(message.Text,"珍珠"):
+									food = "珍珠石斑"
+								default:
+									if Contains(message.Text,"一斤多少")||Contains(message.Text,"多少錢")||Contains(message.Text,"怎麼賣")||Contains(message.Text,"怎麼算")||Contains(message.Text,"還有多少")||Contains(message.Text,"剩下多少")||Contains(message.Text,"庫存")||Contains(message.Text,"還有幾"){
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("拍謝啦! 我是笨笨的電腦，不知道您要問哪種石斑捏，我們有龍虎石斑、青斑、還有珍珠石斑")).Do()
+									}
+							}
+							if food != ""{
+								i:=0
+								for i<=len(list_array){
+									var menu []string
+									menu = strings.Split(list_array[i], " ")
+									if menu[0] == food{
+										price=menu[1]
+										stock=menu[2]
+										break
+									}
+									i++
+								}
+								switch{
+									case Contains(message.Text,"e7")||Contains(message.Text,"多少錢")||Contains(message.Text,"怎麼賣")||Contains(message.Text,"怎麼算"):
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(food + "一斤" + price)).Do() 
+									case Contains(message.Text,"還有多少")||Contains(message.Text,"剩下多少")||Contains(message.Text,"庫存")||Contains(message.Text,"還有幾"):
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(food + "大概還有" + stock + "尾可以買，賣完就沒了喔!! 趕快來電088953096/0939220743黃先生")).Do() 
+									case Contains(message.Text,"要買"):/**
+										if len(profile) > 0{
+											bot.PushMessage(admin,linebot.NewTextMessage(profile[1] + profile[2] + "要買" + food)).Do() 
+											bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(food + "嗎? 我已經幫你聯絡老闆了，晚點他就會主動跟你聯繫，請耐心等一下喔")).Do()
+										}else{
+											bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買魚嗎? 可是你好像還不是我們菜市場的會員捏，麻煩跟管理員聯繫幫你加入菜市場會員，會員才有特別優惠喔!!")).Do() 	
+										}**/
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買石斑嗎? 趕快撥打 0939 220 743 跟石斑膠膠哥-黃大哥買魚喔!!")).Do()
+								}
+							}else{
+								if Contains(message.Text,"e4"){/**
+									if len(profile) > 0{
+										bot.PushMessage(admin,linebot.NewTextMessage(profile[1] + profile[2] + "要買菜")).Do() 
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買魚嗎? 我已經幫你聯絡老闆了，晚點他就會主動跟你聯繫，請耐心等一下喔")).Do() 	
+									}else{
+										bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買魚嗎? 可是你好像還不是我們菜市場的會員捏，麻煩跟管理員聯繫幫你加入菜市場會員，會員才有特別優惠喔!!")).Do() 	
+									}**/
+									bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("你要買石斑嗎? 趕快撥打 0939 220 743 跟石斑膠膠哥-黃大哥買魚喔!!")).Do()
+								}
+							}
+	//指令集
+						case (uid==admin)&&Contains(message.Text,"/join "):
+							s:=0
+							var profile2 []string
+							for s<=len(user_array)-1{
+								var menu []string
+								menu = strings.Split(user_array[e], " & ")
+								if menu[0] == strings.Replace(message.Text, "/join ", "", -1){
+									profile2 = strings.Split(user_array[e], " & ")
+									break
+								}
+								e++
+							}
+							bot.PushMessage(strings.Replace(message.Text, "/join ", "", -1),linebot.NewTextMessage(profile2[2] + "你好，已經幫你加入菜市場會員了，你現在可以開始買菜囉!!")).Do() 
+						case (uid==admin)&&Contains(message.Text,"/nojoin "):
+							bot.PushMessage(strings.Replace(message.Text, "/nojoin ", "", -1),linebot.NewTextMessage("經過我們的審核，你輸入的資料好像有點問題耶，可以請你重新申請一次嗎? 直接傳訊息說 我要加入 就可以了")).Do() 
+						case (uid==admin)&&Contains(message.Text,"/w "):
+							conn = strings.Replace(message.Text, "/w ", "", -1)
+							for e<=len(user_array){
+								var menu []string
+								menu = strings.Split(user_array[e], " & ")
+								if menu[1] == conn{
+									profile = strings.Split(user_array[e], " & ")
+									conn = profile[0]
+									break
+								}
+								e++
+							}
+							bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("已成功與" + profile[2] + "連結，可以直接傳訊息開始通訊")).Do() 
+							bot.PushMessage(conn,linebot.NewTextMessage("老闆出現囉! 你現在可以跟他傳訊息了")).Do() 
+	//以下是喇賽的code
+						case Contains(message.Text,"e5")||Contains(message.Text,"洗眼")||Contains(message.Text,"乳牛")||Contains(message.Text,"淨化"):
+							bot.ReplyMessage(event.ReplyToken, linebot.NewImageMessage(cow,cow)).Do() 
+						case Contains(message.Text,"e6"):
+							bot.ReplyMessage(event.ReplyToken, linebot.NewImageMessage(url + "6569950-1490833625.jpg", url + "6569950-1490833625.jpg")).Do() 
+						case Contains(message.Text,"黑人問號"):
+							bot.ReplyMessage(event.ReplyToken, linebot.NewImageMessage(url + "blackman.jpg", url + "blackman.jpg")).Do() 					
+					}
 				}
 			}
+
 		}
 	}
+}
+
+func Contains(s, substr string) bool {
+     return Index(s, substr) != -1
+}
+
+
+func Index(s string, sep string) int {
+    n := len(sep)
+    if n == 0 {
+        return 0
+    }
+    c := sep[0]
+    if n == 1 {
+        // special case worth making fast
+        for i := 0; i < len(s); i++ {
+            if s[i] == c {
+                return i
+            }
+        }
+        return -1
+    }
+    // n > 1
+    for i := 0; i+n <= len(s); i++ {
+        if s[i] == c && s[i:i+n] == sep {
+            return i
+        }
+    }
+    return -1
 }
