@@ -10,27 +10,6 @@ import (
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
-type SelfIntro struct {
-	bot         *linebot.Client
-	appBaseURL  string
-	downloadDir string
-}
-
-func NewSelfIntro(channelSecret, channelToken string) (*SelfIntro, error) {
-	bot, err := linebot.New(
-		channelSecret,
-		channelToken,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &SelfIntro{
-		bot:         bot,
-		appBaseURL:  "nil",
-		downloadDir: "nil",
-	}, nil
-}
-
 func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 	events, err := s.bot.ParseRequest(r)
 	if err != nil {
