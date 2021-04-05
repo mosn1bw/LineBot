@@ -49,19 +49,9 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 // NewTextMessage function
 func NewTextMessage(content string) *TextMessage {
 	if text == "m1" {
-	    message := linebot.NewTextMessage(text + "じゃねぇよ！")
+		message := linebot.NewTextMessage(text + "じゃねぇよ！"){
 			linebot.NewTextMessage("Select your favorite food category or send me your location!").
 			}
-		}
-
-		case "m2":
-			if e.Source.Type != linebot.EventSourceTypeUser {
-				return nil
-			}
-			messages = append(messages,
-				linebot.NewTextMessage("クーポンをゲットしよう!!!"),
-				linebot.NewTextMessage(os.Getenv("WEB_CAMPAIGN_URL")),
-			)
 		}
 
 		return messages
