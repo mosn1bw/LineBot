@@ -74,11 +74,6 @@ func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func main() {
-
-	fmt.Printf(hello())
-	fmt.Printf(greet.SelfIntro())
-}
 
 func hello() string {
 	return "Hello world!"
