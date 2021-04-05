@@ -42,38 +42,6 @@ func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, event := range events {
-		fmt.Printf("Got event %v", event)
-		switch event.Type {
-		case linebot.EventTypeMessage:
-			switch message := event.Message.(type) {
-			case *linebot.TextMessage:
-				if err := s.handleText(message, event.ReplyToken, event.Source); err != nil {
-					log.Println(err)
-				}
-			case *linebot.StickerMessage:
-				if err := s.handleSticker(message, event.ReplyToken); err != nil {
-					log.Print(err)
-				}
-			default:
-				log.Printf("Unknown message: %v", message)
-			}
-		case linebot.EventTypeFollow:
-			if err := s.handleJoin(event.ReplyToken, event.Source); err != nil {
-				log.Println(err)
-			}
-		case linebot.EventTypeJoin:
-			if err := s.handleJoin(event.ReplyToken, event.Source); err != nil {
-				log.Println(err)
-			}
-		case linebot.EventTypeLeave:
-			log.Printf("Left: %v", event)
-		default:
-			log.Printf("Unknown event: %v", event)
-		}
-	}
-}
-
 
 func hello() string {
 	return "Hello world!"
