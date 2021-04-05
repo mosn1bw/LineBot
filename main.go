@@ -75,7 +75,7 @@ func (s *SelfIntro) Callback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SelfIntro) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
-	domain, keyword := TextMessage(message.Text)
+	domain, keyword := Message(message.Text)
 	switch domain {
 	case "w5":
 		works, err := readJSON("static/message/works.json")
