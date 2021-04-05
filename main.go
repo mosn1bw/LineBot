@@ -49,9 +49,8 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 // NewTextMessage function
 func NewTextMessage(content string) *TextMessage {
 	if text == "m1" {
-		message := linebot.NewTextMessage(text + "じゃねぇよ！"){
-			linebot.NewTextMessage("Select your favorite food category or send me your location!").
-			}
+		message := linebot.NewTextMessage(text + "じゃねぇよ！")
+		linebot.NewTextMessage("Select your favorite food category or send me your location!").
 		}
 
 		return messages
