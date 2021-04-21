@@ -16,11 +16,100 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
+	"strings"
 
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/mochisuna/linebot-sample/config"
+	"github.com/mochisuna/linebot-sample/domain"
 )
+
+const (
+	ActionEventOpen        = "open"
+	ActionEventClose       = "close"
+	ActionEventList        = "list"
+	ActionEventParticipate = "participate"
+	ActionEventLeave       = "leave"
+	ActionEventHelp        = "help"
+	ActionEventVote        = "vote"
+	ActionEventVoted       = "voted"
+	ActionEventStart       = "start"
+	ActionEventFinish      = "finish"
+	ActionEventCancel      = "cancel"
+)
+
+// TODO ファイルから読み出すように変更
+const HelpMessage = "このbotについて\nこのbotはLT会等で、参加者からアンケートを募集することを目的に作られています。\n\n以下のアクション一覧から利用したいコマンドを実行してください。"
+
+type Line struct {
+	Bot *linebot.Client
+}
+
+// New inject to domain services
+func NewLineBot(config *config.Line) *Line {
+	client, err := linebot.New(config.ChannelSecret, config.ChannelToken)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return &Line{client}
+}
+
+func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
+	log.Println("callback")
+	ctx := r.Context()
+	reqests, err := s.Bot.ParseRequest(r)
+	for _, req := range reqests {
+		fmt.Printf("%#v\n", req)
+		var response linebot.SendingMessage
+		switch req.Type {
+		case linebot.EventTypeMessage:
+			switch message := req.Message.(type) {
+			case *linebot.TextMessage:
+				switch message.Text {
+				// リッチメニューボタン
+				case ActionEventOpen:
+					response = s.getMessageOpenEvent(ctx, req)
+				case ActionEventClose:
+					response = s.getMessageCloseEvent(ctx, req)
+				case ActionEventList:
+					response = s.getMessageEvents(ctx, req)
+				case ActionEventVote:
+					response = s.getMessageVoteList(ctx, req)
+				case ActionEventLeave:
+					response = s.getMessageLeaveEvent(ctx, req)
+				case ActionEventHelp:
+					response = linebot.NewTextMessage(HelpMessage)
+				// 確認処理ボタン
+				case ActionEventStart:
+					response = s.getMessageStartEvent(ctx, req)
+				case ActionEventFinish:
+					response = s.getMessageFinishEvent(ctx, req)
+				case ActionEventCancel:
+					response = linebot.NewTextMessage("処理を中断しました")
+				default:
+					if strings.Contains(message.Text, ActionEventParticipate) {
+						splits := strings.Split(message.Text, " ")
+						log.Println(message.Text)
+						eventID := domain.EventID(splits[1])
+						response = s.getMessageParticipateEvent(ctx, req, eventID)
+					} else if strings.Contains(message.Text, ActionEventVoted) {
+						splits := strings.Split(message.Text, " ")
+						response = s.getMessageVoteEvent(ctx, req, splits[1])
+					} else {
+						response = linebot.NewTextMessage(message.Text)
+					}
+				}
+			}
+		case linebot.EventTypeFollow:
+			response = s.getMessageFollowAction(ctx, req)
+		}
+
+		// 全処理をここで一括
+		if _, err = s.Bot.ReplyMessage(req.ReplyToken, response).Do(); err != nil {
+			fmt.Println(err)
+		}
+	}
+}
 
 var bot *linebot.Client
 
@@ -34,6 +123,618 @@ func main() {
 	http.ListenAndServe(addr, nil)
 }
 
+func (bot *OperatorImpl) ReactToPostback(event *linebot.Event) error {
+	var (
+		data         = strings.Split(event.Postback.Data, ":")
+		requestDao   = database.NewRequest(app.DB())
+		operatorDao  = database.NewOperator(app.DB())
+		passengerDao = database.NewPassenger(app.DB())
+	)
+
+	switch data[0] {
+	case "call":
+		request, err := requestDao.FindByID(data[1])
+		if err != nil {
+			return errors.Wrap(err, "failed to find request")
+		}
+
+		if request.Finished || request.OperatorID != "" {
+			_, err := bot.PushMessage(
+				event.Source.UserID,
+				linebot.NewTextMessage(
+					"申し訳ありません, 他の方が先に申し込みました",
+				),
+			).Do()
+
+			return err
+		}
+
+		request.OperatorID = event.Source.UserID
+
+		request, err = requestDao.Update(request)
+		if err != nil {
+			return errors.Wrap(err, "failed to update request")
+		}
+
+		operators, err := operatorDao.FindAll()
+		if err != nil {
+			return errors.Wrap(err, "failed to find all operators")
+		}
+
+		to := make([]string, 0)
+		for _, operator := range operators {
+			if operator.UserID != request.OperatorID {
+				to = append(to, operator.UserID)
+			}
+		}
+
+		if _, err := bot.Multicast(
+			to,
+			linebot.NewTextMessage(
+				"締め切りました",
+			),
+		).Do(); err != nil {
+			errors.Wrap(err, "failed to multicast")
+		}
+
+		passenger, err := passengerDao.FindByUserID(request.PassengerID)
+		if err != nil {
+			return errors.Wrap(err, "failed to find passenger")
+		}
+
+		if _, err := bot.ReplyMessage(
+			event.ReplyToken,
+			linebot.NewTextMessage(
+				"ご協力ありがとうございます\n"+
+					passenger.Name+"様名義で"+
+					request.Address+"にタクシーを呼んでください\n"+
+					"電話番号は03-5755-2151です\n"+
+					"タクシーが到着するまでの時間も聞いてください",
+			),
+		).Do(); err != nil {
+			return errors.Wrap(err, "failed to reply message to operator")
+		}
+
+		if _, err := bot.PushMessage(
+			request.OperatorID,
+			linebot.NewTemplateMessage(
+				"時間の確認",
+				linebot.NewButtonsTemplate(
+					"",
+					"時間の確認",
+					"タクシーは何分で到着しますか",
+					linebot.NewPostbackAction(
+						"5分以内",
+						"finish:a:"+request.ID,
+						"5分以内",
+						"",
+					),
+					linebot.NewPostbackAction(
+						"10分以内",
+						"finish:b:"+request.ID,
+						"10分以内",
+						"",
+					),
+					linebot.NewPostbackAction(
+						"15分以内",
+						"finish:c:"+request.ID,
+						"15分以内",
+						"",
+					),
+					linebot.NewPostbackAction(
+						"15分以上",
+						"finish:d:"+request.ID,
+						"15分以上",
+						"",
+					),
+				),
+			).WithQuickReplies(linebot.NewQuickReplyItems(
+				linebot.NewQuickReplyButton(
+					"",
+					linebot.NewPostbackAction(
+						"配車に失敗",
+						"error:"+request.ID,
+						"配車に失敗",
+						"",
+					),
+				),
+			)),
+		).Do(); err != nil {
+			return errors.Wrap(err, "failed to push message to operator")
+		}
+	case "finish":
+		request, err := requestDao.FindByID(data[2])
+		if err != nil {
+			return errors.Wrap(err, "failed to find request")
+		}
+
+		if request.Finished {
+			return errors.Wrap(err, "already finished")
+		}
+
+		if _, err := app.PassengerBot().PushMessage(
+			request.PassengerID,
+			linebot.NewTextMessage("配車の手続きが完了しました. "+when(data[1])),
+		).Do(); err != nil {
+			return errors.Wrap(err, "failed to push message to passenger")
+		}
+
+		request.Finished = true
+
+		if _, err := requestDao.Update(request); err != nil {
+			return errors.Wrap(err, "failed to update request")
+		}
+
+	case "error":
+		request, err := requestDao.FindByID(data[1])
+		if err != nil {
+			return errors.Wrap(err, "failed to find request")
+		}
+
+		if request.Finished {
+			return errors.Wrap(err, "already finished")
+		}
+
+		if _, err := bot.PushMessage(
+			request.OperatorID,
+			linebot.NewTextMessage("残念です"),
+		).Do(); err != nil {
+			return errors.Wrap(err, "failed to push message to operator")
+		}
+
+		if _, err := app.PassengerBot().PushMessage(
+			request.PassengerID,
+			linebot.NewTextMessage("申し訳ありません, 配車に失敗しました"),
+		).Do(); err != nil {
+			return errors.Wrap(err, "failed to push message to passenger")
+		}
+
+		request.Finished = true
+
+		if _, err := requestDao.Update(request); err != nil {
+			return errors.Wrap(err, "failed to update request")
+		}
+	}
+
+	return nil
+}
+
+func when(c string) string {
+	switch c {
+	case "a":
+		return "5分以内にタクシーが到着します, お待ちください"
+	case "b":
+		return "10分以内にタクシーが到着します, お待ちください"
+	case "c":
+		return "15分以内にタクシーが到着します, お待ちください"
+	case "d":
+		return "タクシーの到着には15分以上かかります, しばらくお待ちください"
+	}
+
+	return ""
+}
+
+func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
+	switch message.Text {
+	case "profile":
+		if source.UserID != "" {
+			profile, err := app.bot.GetProfile(source.UserID).Do()
+			if err != nil {
+				return app.replyText(replyToken, err.Error())
+			}
+			if _, err := app.bot.ReplyMessage(
+				replyToken,
+				linebot.NewTextMessage("Display name: "+profile.DisplayName),
+				linebot.NewTextMessage("Status message: "+profile.StatusMessage),
+			).Do(); err != nil {
+				return err
+			}
+		} else {
+			return app.replyText(replyToken, "Bot can't use profile API without user ID")
+		}
+	case "buttons":
+		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
+		template := linebot.NewButtonsTemplate(
+			imageURL, "My button sample", "Hello, my button",
+			linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
+			linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", "hello こんにちは"),
+			linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
+			linebot.NewMessageTemplateAction("Say message", "Rice=米"),
+		)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTemplateMessage("Buttons alt text", template),
+		).Do(); err != nil {
+			return err
+		}
+	case "confirm":
+		template := linebot.NewConfirmTemplate(
+			"Do it?",
+			linebot.NewMessageTemplateAction("Yes", "Yes!"),
+			linebot.NewMessageTemplateAction("No", "No!"),
+		)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTemplateMessage("Confirm alt text", template),
+		).Do(); err != nil {
+			return err
+		}
+	case "carousel":
+		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
+		template := linebot.NewCarouselTemplate(
+			linebot.NewCarouselColumn(
+				imageURL, "hoge", "fuga",
+				linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
+				linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", ""),
+			),
+			linebot.NewCarouselColumn(
+				imageURL, "hoge", "fuga",
+				linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
+				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
+			),
+		)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTemplateMessage("Carousel alt text", template),
+		).Do(); err != nil {
+			return err
+		}
+	case "image carousel":
+		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
+		template := linebot.NewImageCarouselTemplate(
+			linebot.NewImageCarouselColumn(
+				imageURL,
+				linebot.NewURITemplateAction("Go to LINE", "https://line.me"),
+			),
+			linebot.NewImageCarouselColumn(
+				imageURL,
+				linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", ""),
+			),
+			linebot.NewImageCarouselColumn(
+				imageURL,
+				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
+			),
+			linebot.NewImageCarouselColumn(
+				imageURL,
+				linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
+			),
+		)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTemplateMessage("Image carousel alt text", template),
+		).Do(); err != nil {
+			return err
+		}
+	case "datetime":
+		template := linebot.NewButtonsTemplate(
+			"", "", "Select date / time !",
+			linebot.NewDatetimePickerTemplateAction("date", "DATE", "date", "", "", ""),
+			linebot.NewDatetimePickerTemplateAction("time", "TIME", "time", "", "", ""),
+			linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
+		)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTemplateMessage("Datetime pickers alt text", template),
+		).Do(); err != nil {
+			return err
+		}
+	case "flex":
+		// {
+		//   "type": "bubble",
+		//   "body": {
+		//     "type": "box",
+		//     "layout": "horizontal",
+		//     "contents": [
+		//       {
+		//         "type": "text",
+		//         "text": "Hello,"
+		//       },
+		//       {
+		//         "type": "text",
+		//         "text": "World!"
+		//       }
+		//     ]
+		//   }
+		// }
+		contents := &linebot.BubbleContainer{
+			Type: linebot.FlexContainerTypeBubble,
+			Body: &linebot.BoxComponent{
+				Type:   linebot.FlexComponentTypeBox,
+				Layout: linebot.FlexBoxLayoutTypeHorizontal,
+				Contents: []linebot.FlexComponent{
+					&linebot.TextComponent{
+						Type: linebot.FlexComponentTypeText,
+						Text: "Hello,",
+					},
+					&linebot.TextComponent{
+						Type: linebot.FlexComponentTypeText,
+						Text: "World!",
+					},
+				},
+			},
+		}
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewFlexMessage("Flex message alt text", contents),
+		).Do(); err != nil {
+			return err
+		}
+	case "flex carousel":
+		// {
+		//   "type": "carousel",
+		//   "contents": [
+		//     {
+		//       "type": "bubble",
+		//       "body": {
+		//         "type": "box",
+		//         "layout": "vertical",
+		//         "contents": [
+		//           {
+		//             "type": "text",
+		//             "text": "First bubble"
+		//           }
+		//         ]
+		//       }
+		//     },
+		//     {
+		//       "type": "bubble",
+		//       "body": {
+		//         "type": "box",
+		//         "layout": "vertical",
+		//         "contents": [
+		//           {
+		//             "type": "text",
+		//             "text": "Second bubble"
+		//           }
+		//         ]
+		//       }
+		//     }
+		//   ]
+		// }
+		contents := &linebot.CarouselContainer{
+			Type: linebot.FlexContainerTypeCarousel,
+			Contents: []*linebot.BubbleContainer{
+				&linebot.BubbleContainer{
+					Type: linebot.FlexContainerTypeBubble,
+					Body: &linebot.BoxComponent{
+						Type:   linebot.FlexComponentTypeBox,
+						Layout: linebot.FlexBoxLayoutTypeVertical,
+						Contents: []linebot.FlexComponent{
+							&linebot.TextComponent{
+								Type: linebot.FlexComponentTypeText,
+								Text: "First bubble",
+							},
+						},
+					},
+				},
+				&linebot.BubbleContainer{
+					Type: linebot.FlexContainerTypeBubble,
+					Body: &linebot.BoxComponent{
+						Type:   linebot.FlexComponentTypeBox,
+						Layout: linebot.FlexBoxLayoutTypeVertical,
+						Contents: []linebot.FlexComponent{
+							&linebot.TextComponent{
+								Type: linebot.FlexComponentTypeText,
+								Text: "Second bubble",
+							},
+						},
+					},
+				},
+			},
+		}
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewFlexMessage("Flex message alt text", contents),
+		).Do(); err != nil {
+			return err
+		}
+	case "flex json":
+		jsonString := `{
+  "type": "bubble",
+  "hero": {
+    "type": "image",
+    "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png",
+    "size": "full",
+    "aspectRatio": "20:13",
+    "aspectMode": "cover",
+    "action": {
+      "type": "uri",
+      "uri": "http://linecorp.com/"
+    }
+  },
+  "body": {
+    "type": "box",
+    "layout": "vertical",
+    "contents": [
+      {
+        "type": "text",
+        "text": "Brown Cafe",
+        "weight": "bold",
+        "size": "xl"
+      },
+      {
+        "type": "box",
+        "layout": "baseline",
+        "margin": "md",
+        "contents": [
+          {
+            "type": "icon",
+            "size": "sm",
+            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+          },
+          {
+            "type": "icon",
+            "size": "sm",
+            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+          },
+          {
+            "type": "icon",
+            "size": "sm",
+            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+          },
+          {
+            "type": "icon",
+            "size": "sm",
+            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+          },
+          {
+            "type": "icon",
+            "size": "sm",
+            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gray_star_28.png"
+          },
+          {
+            "type": "text",
+            "text": "4.0",
+            "size": "sm",
+            "color": "#999999",
+            "margin": "md",
+            "flex": 0
+          }
+        ]
+      },
+      {
+        "type": "box",
+        "layout": "vertical",
+        "margin": "lg",
+        "spacing": "sm",
+        "contents": [
+          {
+            "type": "box",
+            "layout": "baseline",
+            "spacing": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "Place",
+                "color": "#aaaaaa",
+                "size": "sm",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "Miraina Tower, 4-1-6 Shinjuku, Tokyo",
+                "wrap": true,
+                "color": "#666666",
+                "size": "sm",
+                "flex": 5
+              }
+            ]
+          },
+          {
+            "type": "box",
+            "layout": "baseline",
+            "spacing": "sm",
+            "contents": [
+              {
+                "type": "text",
+                "text": "Time",
+                "color": "#aaaaaa",
+                "size": "sm",
+                "flex": 1
+              },
+              {
+                "type": "text",
+                "text": "10:00 - 23:00",
+                "wrap": true,
+                "color": "#666666",
+                "size": "sm",
+                "flex": 5
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "type": "box",
+    "layout": "vertical",
+    "spacing": "sm",
+    "contents": [
+      {
+        "type": "button",
+        "style": "link",
+        "height": "sm",
+        "action": {
+          "type": "uri",
+          "label": "CALL",
+          "uri": "https://linecorp.com"
+        }
+      },
+      {
+        "type": "button",
+        "style": "link",
+        "height": "sm",
+        "action": {
+          "type": "uri",
+          "label": "WEBSITE",
+          "uri": "https://linecorp.com"
+        }
+      },
+      {
+        "type": "spacer",
+        "size": "sm"
+      }
+    ],
+    "flex": 0
+  }
+}`
+		contents, err := linebot.UnmarshalFlexMessageJSON([]byte(jsonString))
+		if err != nil {
+			return err
+		}
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewFlexMessage("Flex message alt text", contents),
+		).Do(); err != nil {
+			return err
+		}
+	case "imagemap":
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewImagemapMessage(
+				app.appBaseURL+"/assets/rich",
+				"Imagemap alt text",
+				linebot.ImagemapBaseSize{1040, 1040},
+				linebot.NewURIImagemapAction("https://store.line.me/family/manga/en", linebot.ImagemapArea{0, 0, 520, 520}),
+				linebot.NewURIImagemapAction("https://store.line.me/family/music/en", linebot.ImagemapArea{520, 0, 520, 520}),
+				linebot.NewURIImagemapAction("https://store.line.me/family/play/en", linebot.ImagemapArea{0, 520, 520, 520}),
+				linebot.NewMessageImagemapAction("URANAI!", linebot.ImagemapArea{520, 520, 520, 520}),
+			),
+		).Do(); err != nil {
+			return err
+		}
+	case "bye":
+		switch source.Type {
+		case linebot.EventSourceTypeUser:
+			return app.replyText(replyToken, "Bot can't leave from 1:1 chat")
+		case linebot.EventSourceTypeGroup:
+			if err := app.replyText(replyToken, "Leaving group"); err != nil {
+				return err
+			}
+			if _, err := app.bot.LeaveGroup(source.GroupID).Do(); err != nil {
+				return app.replyText(replyToken, err.Error())
+			}
+		case linebot.EventSourceTypeRoom:
+			if err := app.replyText(replyToken, "Leaving room"); err != nil {
+				return err
+			}
+			if _, err := app.bot.LeaveRoom(source.RoomID).Do(); err != nil {
+				return app.replyText(replyToken, err.Error())
+			}
+		}
+	default:
+		log.Printf("Echo message to %s: %s", replyToken, message.Text)
+		if _, err := app.bot.ReplyMessage(
+			replyToken,
+			linebot.NewTextMessage(message.Text),
+		).Do(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func callbackHandler(w http.ResponseWriter, r *http.Request) {
 	events, err := bot.ParseRequest(r)
 
@@ -44,16 +745,6 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(500)
 		}
 		return
-	}
-
-// NewTextMessage function
-func NewTextMessage(content string) *TextMessage {
-	if text == "m1" {
-		message := linebot.NewTextMessage(text + "じゃねぇよ！")
-		linebot.NewTextMessage("Select your favorite food category or send me your location!").
-		}
-
-		return messages
 	}
 
 	for _, event := range events {
@@ -70,3 +761,4 @@ func NewTextMessage(content string) *TextMessage {
 			}
 		}
 	}
+}
