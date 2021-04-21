@@ -19,8 +19,6 @@ import (
 	"strings"
 
 	"github.com/line/line-bot-sdk-go/linebot"
-	"github.com/mochisuna/linebot-sample/config"
-	"github.com/mochisuna/linebot-sample/domain"
 )
 
 const (
