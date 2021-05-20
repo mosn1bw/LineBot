@@ -1,78 +1,66 @@
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
-	"strings"
+	"os"
+	"strconv"
 
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
-var postNumber = 4
+var bot *linebot.Client
 
-func messageReply(event linebot.Event) (err error) {
-	message := event.Message.(*linebot.TextMessage)
-
-	if message.Text == "你在哪交換" {
-		if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewLocationMessage("捷克理工大學", "Zikova 1903/4, 166 36 Praha 6", 50.102974, 14.391177)).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-	} else if message.Text == "給我看履歷" {
-		if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("https://docs.google.com/document/d/1eKjTU4ebTTUJrISXR5YcQ47Jki-Br4apP_EQT_K_dbA/edit?usp=sharing")).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-	} else if message.Text == "你會哪些東西呢" {
-		skills := []string{"Golang", ".NET MVC", "Gitlab CI/CD", "Mysql", "Redis"}
-		replyMessage := "我會很多東西呢\n\n"
-
-		for _, skill := range skills {
-			replyMessage += "\n" + skill
-		}
-		replyMessage += "\n\n等等等..."
-
-		if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-	} else if message.Text == "你有哪些興趣呢" {
-		skills := []string{"游泳", "打羽毛球", "看美劇", "踏青", "在床上耍廢"}
-		replyMessage := "我有很多興趣呢\n\n"
-
-		for _, skill := range skills {
-			replyMessage += "\n" + skill
-		}
-		replyMessage += "\n\n等等等..."
-
-		if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-	} else if message.Text == "最近文章" {
-		template := crawlBlog(postNumber)
-		packMessage := linebot.NewTemplateMessage("哎呀~ 要用手機看歐", template)
-		if _, err := bot.ReplyMessage(event.ReplyToken, packMessage).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-	} else if message.Text == "嗨" {
-		packMessage := linebot.NewTemplateMessage("哎呀~ 要用手機看歐", questionTemplate)
-		if _, err := bot.ReplyMessage(event.ReplyToken, packMessage).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-
-	} else {
-		if _, err := bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage("哎呀！你這樣問我有點困擾呢！")).Do(); err != nil {
-			log.Print(err)
-			return err
-		}
-	}
-
-	return nil
+func main() {
+	var err error
+	bot, err = linebot.New(os.Getenv("ChannelSecret"), os.Getenv("ChannelAccessToken"))
+	log.Println("Bot:", bot, " err:", err)
+	http.HandleFunc("/callback", callbackHandler)
+	port := os.Getenv("PORT")
+	addr := fmt.Sprintf(":%s", port)
+	http.ListenAndServe(addr, nil)
 }
 
+func callbackHandler(w http.ResponseWriter, r *http.Request) {
+	events, err := bot.ParseRequest(r)
+
+	if err != nil {
+		if err == linebot.ErrInvalidSignature {
+			w.WriteHeader(400)
+		} else {
+			w.WriteHeader(500)
+		}
+		return
+	}
+
+	for _, event := range events {
+		if event.Type == linebot.EventTypeMessage {
+			switch message := event.Message.(type) {
+			case *linebot.TextMessage:
+				quota, err := bot.GetMessageQuota().Do()
+				if err != nil {
+					log.Println("Quota err:", err)
+				}
+				if _, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(message.ID+":"+message.Text+" OK! remain message:"+strconv.FormatInt(quota.Value, 10))).Do(); err != nil {
+					log.Print(err)
+				}
+			}
+		}
+	}
+}
 func crawlBlog(num int) *linebot.CarouselTemplate {
 	template := linebot.NewCarouselTemplate()
 	carouselCols := []*linebot.CarouselColumn{}
