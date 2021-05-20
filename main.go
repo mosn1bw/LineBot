@@ -99,8 +99,7 @@ func crawlBlog(num int) *linebot.CarouselTemplate {
 	template = linebot.NewCarouselTemplate(carouselCols...)
 
 	return template
-}
-	switch data[0] {
+	
 	case "call":
 		request, err := requestDao.FindByID(data[1])
 		if err != nil {
@@ -703,19 +702,6 @@ func (app *KitchenSink) handleText(message *linebot.TextMessage, replyToken stri
 	}
 	return nil
 }
-
-func callbackHandler(w http.ResponseWriter, r *http.Request) {
-	events, err := bot.ParseRequest(r)
-
-	if err != nil {
-		if err == linebot.ErrInvalidSignature {
-			w.WriteHeader(400)
-		} else {
-			w.WriteHeader(500)
-		}
-		return
-	}
-
 	for _, event := range events {
 		if event.Type == linebot.EventTypeMessage {
 			switch message := event.Message.(type) {
