@@ -100,6 +100,9 @@ func crawlBlog(num int) *linebot.CarouselTemplate {
 
 	return template
 	
+func (s *KitchenSink) handleText(message *linebot.TextMessage, replyToken string, source *linebot.EventSource) error {
+	domain, keyword := ParseMessage(message.Text)
+	switch domain {
 	case "call":
 		request, err := requestDao.FindByID(data[1])
 		if err != nil {
