@@ -18,7 +18,9 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
@@ -90,7 +92,6 @@ func crawlBlog(num int) *linebot.CarouselTemplate {
 		pictureURL, _ := s.Find("a").Find("div").Attr("style")
 		pictureURL = pictureURL[strings.Index(pictureURL, "(")+1 : strings.Index(pictureURL, ")")]
 
-		btn := linebot.NewURITemplateAction("觀看", postURL)
 		column := linebot.NewCarouselColumn(pictureURL, "文章", title, btn)
 
 		carouselCols = append(carouselCols, column)
@@ -100,14 +101,6 @@ func crawlBlog(num int) *linebot.CarouselTemplate {
 
 	return template
 }
-func (bot *OperatorImpl) ReactToPostback(event *linebot.Event) error {
-	var (
-		data         = strings.Split(event.Postback.Data, ":")
-		requestDao   = database.NewRequest(app.DB())
-		operatorDao  = database.NewOperator(app.DB())
-		passengerDao = database.NewPassenger(app.DB())
-	)
-
 	switch data[0] {
 	case "call":
 		request, err := requestDao.FindByID(data[1])
