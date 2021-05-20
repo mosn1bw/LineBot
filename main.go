@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/line/line-bot-sdk-go/linebot"
 )
 
