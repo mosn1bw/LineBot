@@ -69,7 +69,7 @@ func main() {
 				n := time.Now()
 			      //NowT := timeutil.Strftime(&n, "%Y年%m月%d日%H時%M分%S秒")
 				p, _ := cl.GetProfile(re.Source.UserID).Do()
-				cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage("謝謝你！\n"+p.DisplayName+"呃\n\n"+NowT)).Do()
+				cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage("謝謝你！\n"+p.DisplayName+"呃\n\n")).Do()
 				log.Println("DisplayName:" + p.DisplayName)
 			}
 			if re.Type == linebot.EventTypeMessage {
@@ -89,7 +89,7 @@ func main() {
 						cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage("help\n・[image:画像url]=從圖片網址發送圖片\n・[speed]=測回話速度\n・[groupid]=發送GroupID\n・[roomid]=發送RoomID\n・[byebye]=取消訂閱\n・[about]=作者\n・[me]=發送發件人信息\n・[test]=test bowwow是否正常\n・[now]=現在時間\n・[mid]=mid\n・[sticker]=隨機圖片\n\n[其他機能]\n位置測試\n捉貼圖ID\n加入時發送消息")).Do()
 					} else if msg.Text == "check" {
 						fmt.Println(msg)
-						cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage(NowT)).Do()
+						cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage(re.Source.UserID)).Do()
 					} else if msg.Text == "mid" {
 						cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage(re.Source.UserID)).Do()
 					} else if msg.Text == "roomid" {
