@@ -630,95 +630,18 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 				sourceId = userId
 			}
 		}
-	    case "profile":
-		if source.UserID != "" {
-			profile, err := app.bot.GetProfile(source.UserID).Do()
-			if err != nil {
-				return app.replyText(replyToken, err.Error())
-			}
-			if _, err := app.bot.ReplyMessage(
-				replyToken,
-				linebot.NewTextMessage("Display name: "+profile.DisplayName),
-				linebot.NewTextMessage("Status message: "+profile.StatusMessage),
-			).Do(); err != nil {
-				return err
-			}
-		} else {
-			return app.replyText(replyToken, "Bot can't use profile API without user ID")
-		}
-	    case "a1":
-		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
-		template := linebot.NewButtonsTemplate(
-			imageURL, "My button sample", "Hello, my button",
-			linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
-			linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", "hello こんにちは"),
-			linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
-			linebot.NewMessageTemplateAction("Say message", "Rice=米"),
-		)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Buttons alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	    case "a2":
-		template := linebot.NewConfirmTemplate(
-			"Do it?",
-			linebot.NewMessageTemplateAction("Yes", "Yes!"),
-			linebot.NewMessageTemplateAction("No", "No!"),
-		)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Confirm alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-            case "a3":
-		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
-		template := linebot.NewCarouselTemplate(
-			linebot.NewCarouselColumn(
-				imageURL, "hoge", "fuga",
-				linebot.NewURITemplateAction("Go to line.me", "https://line.me"),
-				linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", ""),
-			),
-			linebot.NewCarouselColumn(
-				imageURL, "hoge", "fuga",
-				linebot.NewPostbackTemplateAction("言 hello2", "hello こんにちは", "hello こんにちは", ""),
-				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
-			),
-		)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Carousel alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	    case "image a4":
-		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
-		template := linebot.NewImageCarouselTemplate(
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewURITemplateAction("Go to LINE", "https://line.me"),
-			),
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewPostbackTemplateAction("Say hello1", "hello こんにちは", "", ""),
-			),
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewMessageTemplateAction("Say message", "Rice=米"),
-			),
-			linebot.NewImageCarouselColumn(
-				imageURL,
-				linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
-			),
-		)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Image carousel alt text", template),
-		        ).Do(); err != nil {
-		 	return err
-		           }
+		
+		if event.Type == linebot.EventTypeMessage {
+			_, silent := silentMap[sourceId]
+			
+			switch message := event.Message.(type) {
+			case *linebot.TextMessage:
+
+				log.Print("ReplyToken[" + replyToken + "] TextMessage: ID(" + message.ID + "), Text(" + message.Text  + "), current silent status=" + strconv.FormatBool(silent) )
+				//if _, err = bot.ReplyMessage(replyToken, linebot.NewTextMessage(message.ID+":"+message.Text+" OK!")).Do(); err != nil {
+				//	log.Print(err)
+				//}
+				
 				if strings.Contains(message.Text, "test") {
 					bot.ReplyMessage(replyToken, linebot.NewTextMessage("success")).Do()
 				} else if "groupid"  == message.Text {
