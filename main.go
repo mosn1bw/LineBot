@@ -170,20 +170,6 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 				} else if "say" == message.Text {
 					silentMap[sourceId] = false
 					bot.ReplyMessage(replyToken, linebot.NewTextMessage("Microphone test，1、2、3... OK")).Do()
-				} else if "profile" == message.Text {
-					if source.UserID != "" {
-						profile, err := bot.GetProfile(source.UserID).Do()
-						if err != nil {
-							log.Print(err)
-						} else if _, err := bot.ReplyMessage(
-							replyToken,
-							linebot.NewTextMessage("Display name: "+profile.DisplayName + ", Status message: "+profile.StatusMessage)).Do(); err != nil {
-								log.Print(err)
-                            }    
-						}
-					} else {
-						bot.ReplyMessage(replyToken, linebot.NewTextMessage("Bot can't use profile API without user ID")).Do()
-					}
 				} else if "buttons" == message.Text {
 					imageURL := "https://lh3.googleusercontent.com/-xHqQP4wTZDU/YBq5AgqjvCI/AAAAAAAAL6c/TmVGaX4tgIk07K5bZIPDtV9Ct49xEwaxwCK8BGAsYHg/s512/2021-02-03.gif"
 					//log.Print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+imageURL)
