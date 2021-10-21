@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/leekchan/timeutil"
 	"github.com/line/line-bot-sdk-go/linebot"
+	"github.com/timest/env"
 	"log"
 	"math/rand"
 	"net/http"
