@@ -630,7 +630,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 				sourceId = userId
 			}
 		}
-	case "profile":
+	    case "profile":
 		if source.UserID != "" {
 			profile, err := app.bot.GetProfile(source.UserID).Do()
 			if err != nil {
@@ -646,7 +646,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			return app.replyText(replyToken, "Bot can't use profile API without user ID")
 		}
-	case "a1":
+	    case "a1":
 		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
 		template := linebot.NewButtonsTemplate(
 			imageURL, "My button sample", "Hello, my button",
@@ -661,7 +661,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "a2":
+	    case "a2":
 		template := linebot.NewConfirmTemplate(
 			"Do it?",
 			linebot.NewMessageTemplateAction("Yes", "Yes!"),
@@ -673,7 +673,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "a3":
+            case "a3":
 		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
 		template := linebot.NewCarouselTemplate(
 			linebot.NewCarouselColumn(
@@ -693,7 +693,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "image a4":
+	    case "image a4":
 		imageURL := app.appBaseURL + "/assets/buttons/1040.jpg"
 		template := linebot.NewImageCarouselTemplate(
 			linebot.NewImageCarouselColumn(
@@ -719,7 +719,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "flex":
+	    case "flex":
 		// {
 		//   "type": "bubble",
 		//   "body": {
@@ -760,7 +760,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "flex carousel":
+	    case "flex carousel":
 		// {
 		//   "type": "carousel",
 		//   "contents": [
@@ -829,7 +829,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "flex json":
+	    case "flex json":
 		jsonString := `{
   "type": "bubble",
   "hero": {
@@ -990,7 +990,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		).Do(); err != nil {
 			return err
 		}
-	case "datetime1":
+	    case "datetime1":
 		template := linebot.NewButtonsTemplate(
 			"", "", "Select date / time !",
 			linebot.NewDatetimePickerTemplateAction("date", "DATE", "date", "", "", ""),
@@ -1006,10 +1006,10 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		if event.Type == linebot.EventTypeMessage {
 			_, silent := silentMap[sourceId]
 			
-			switch message := event.Message.(type) {
+                       //switch message := event.Message.(type) {
 			case *linebot.TextMessage:
 
-				log.Print("ReplyToken[" + replyToken + "] TextMessage: ID(" + message.ID + "), Text(" + message.Text  + "), current silent status=" + strconv.FormatBool(silent) )
+				//log.Print("ReplyToken[" + replyToken + "] TextMessage: ID(" + message.ID + "), Text(" + message.Text  + "), current silent status=" + strconv.FormatBool(silent) )
 				//if _, err = bot.ReplyMessage(replyToken, linebot.NewTextMessage(message.ID+":"+message.Text+" OK!")).Do(); err != nil {
 				//	log.Print(err)
 				//}
