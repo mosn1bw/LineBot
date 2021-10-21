@@ -184,19 +184,6 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					} else {
 						bot.ReplyMessage(replyToken, linebot.NewTextMessage("Bot can't use profile API without user ID")).Do()
 					}
-				} else if "gif" == message.Text {
-					imageURL := "https://lh3.googleusercontent.com/-xHqQP4wTZDU/YBq5AgqjvCI/AAAAAAAAL6c/TmVGaX4tgIk07K5bZIPDtV9Ct49xEwaxwCK8BGAsYHg/s512/2021-02-03.gif"
-					//log.Print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+imageURL)
-					template := linebot.NewButtonsTemplate(
-						imageURL, "My button sample", "Hello, my button",
-						linebot.NewURITemplateAction("Go to line.me", "line://ti/p/~M_BW"),
-					)
-					if _, err := bot.ReplyMessage(
-						replyToken,
-						linebot.NewTemplateMessage("Buttons alt text", template),
-					).Do(); err != nil {
-						log.Print(err)
-					}
 				} else if "buttons" == message.Text {
 					imageURL := "https://lh3.googleusercontent.com/-xHqQP4wTZDU/YBq5AgqjvCI/AAAAAAAAL6c/TmVGaX4tgIk07K5bZIPDtV9Ct49xEwaxwCK8BGAsYHg/s512/2021-02-03.gif"
 					//log.Print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> "+imageURL)
@@ -338,7 +325,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 						Body: &linebot.BoxComponent{
 							Type:   linebot.FlexComponentTypeBox,
 							Layout: linebot.FlexBoxLayoutTypeHorizontal,
-							Contents: []linebot.FlexComponent
+							Contents: []linebot.FlexComponent,
 								&linebot.TextComponent{
 									Type: linebot.FlexComponentTypeText,
 									Text: "Hello,",
@@ -346,7 +333,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 								&linebot.TextComponent{
 									Type: linebot.FlexComponentTypeText,
 									Text: "World!",
-								}
+								},
 							}
 						}
 					}
