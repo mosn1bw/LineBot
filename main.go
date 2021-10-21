@@ -829,10 +829,10 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 										&linebot.TextComponent{
 											Type: linebot.FlexComponentTypeText,
 											Text: "First bubble",
-										},
-									},
-								},
-							},
+										}
+									}
+								}
+							}
 							&linebot.BubbleContainer{
 								Type: linebot.FlexContainerTypeBubble,
 								Body: &linebot.BoxComponent{
