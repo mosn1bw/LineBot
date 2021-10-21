@@ -593,7 +593,6 @@ func (c *BoxComponent) MarshalJSON() ([]byte, error) {
 		CornerRadius    FlexComponentCornerRadiusType   `json:"cornerRadius,omitempty"`
 		BackgroundColor string                          `json:"backgroundColor,omitempty"`
 		BorderColor     string                          `json:"borderColor,omitempty"`
-		Action          TemplateAction                  `json:"action,omitempty"`
 		JustifyContent  FlexComponentJustifyContentType `json:"justifyContent,omitempty"`
 		AlignItems      FlexComponentAlignItemsType     `json:"alignItems,omitempty"`
 		Background      *BoxBackground                  `json:"background,omitempty"`
@@ -648,7 +647,6 @@ type BoxBackground struct {
 // ButtonComponent type
 type ButtonComponent struct {
 	Type         FlexComponentType
-	Action       TemplateAction
 	Position     FlexComponentPositionType
 	Flex         *int
 	Margin       FlexComponentMarginType
@@ -667,7 +665,6 @@ type ButtonComponent struct {
 func (c *ButtonComponent) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		Type         FlexComponentType           `json:"type"`
-		Action       TemplateAction              `json:"action"`
 		Position     FlexComponentPositionType   `json:"position,omitempty"`
 		Flex         *int                        `json:"flex,omitempty"`
 		Margin       FlexComponentMarginType     `json:"margin,omitempty"`
@@ -754,7 +751,6 @@ type ImageComponent struct {
 	AspectRatio     FlexImageAspectRatioType
 	AspectMode      FlexImageAspectModeType
 	BackgroundColor string
-	Action          TemplateAction
 	Animated        bool
 	OffsetTop       FlexComponentOffsetType
 	OffsetBottom    FlexComponentOffsetType
@@ -776,7 +772,6 @@ func (c *ImageComponent) MarshalJSON() ([]byte, error) {
 		AspectRatio     FlexImageAspectRatioType  `json:"aspectRatio,omitempty"`
 		AspectMode      FlexImageAspectModeType   `json:"aspectMode,omitempty"`
 		BackgroundColor string                    `json:"backgroundColor,omitempty"`
-		Action          TemplateAction            `json:"action,omitempty"`
 		Animated        bool                      `json:"animated,omitempty"`
 		OffsetTop       FlexComponentOffsetType   `json:"offsetTop,omitempty"`
 		OffsetBottom    FlexComponentOffsetType   `json:"offsetBottom,omitempty"`
@@ -886,7 +881,6 @@ type TextComponent struct {
 	Wrap         bool
 	Weight       FlexTextWeightType
 	Color        string
-	Action       TemplateAction
 	Style        FlexTextStyleType
 	Decoration   FlexTextDecorationType
 	MaxLines     *int
@@ -912,7 +906,6 @@ func (c *TextComponent) MarshalJSON() ([]byte, error) {
 		Wrap         bool                        `json:"wrap,omitempty"`
 		Weight       FlexTextWeightType          `json:"weight,omitempty"`
 		Color        string                      `json:"color,omitempty"`
-		Action       TemplateAction              `json:"action,omitempty"`
 		Style        FlexTextStyleType           `json:"style,omitempty"`
 		Decoration   FlexTextDecorationType      `json:"decoration,omitempty"`
 		MaxLines     *int                        `json:"maxLines,omitempty"`
