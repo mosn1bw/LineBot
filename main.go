@@ -346,9 +346,9 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 								&linebot.TextComponent{
 									Type: linebot.FlexComponentTypeText,
 									Text: "World!",
-								},
-							},
-						},
+								}
+							}
+						}
 					}
 					if _, err := app.bot.ReplyMessage(
 						replyToken,
@@ -396,7 +396,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 								Body: &linebot.BoxComponent{
 									Type:   linebot.FlexComponentTypeBox,
 									Layout: linebot.FlexBoxLayoutTypeVertical,
-									Contents: []linebot.FlexComponent
+									Contents: []linebot.FlexComponent,
 										&linebot.TextComponent{
 											Type: linebot.FlexComponentTypeText,
 											Text: "First bubble",
@@ -404,7 +404,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 									},
 								},
 							},
-								Type: linebot.FlexContainerTypeBubble,
+								Type: linebot.FlexContainerTypeBubble
 								Body: &linebot.BoxComponent{
 									Type:   linebot.FlexComponentTypeBox,
 									Layout: linebot.FlexBoxLayoutTypeVertical,
@@ -412,11 +412,11 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 										&linebot.TextComponent{
 											Type: linebot.FlexComponentTypeText,
 											Text: "Second bubble",
-										},
-									},
-								},
-							},
-						},
+										}
+									}
+								}
+							}
+						}
 					}
 					if _, err := app.bot.ReplyMessage(
 						replyToken,
