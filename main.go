@@ -237,7 +237,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					if rand.Intn(100) > 70 {
 						bot.ReplyMessage(replyToken, linebot.NewTextMessage("請神容易送神難, 我偏不要, 嘿嘿")).Do()
 					} else {
-						switch source.Type {
+						switch source.Type 
 						case linebot.EventSourceTypeUser:
 							bot.ReplyMessage(replyToken, linebot.NewTextMessage("我想走, 但是我走不了...")).Do()
 						case linebot.EventSourceTypeGroup:
@@ -274,7 +274,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				}
+				
 				} else if "datetime" == message.Text {
 					template := linebot.NewButtonsTemplate(
 						"", "", "Select date / time !",
@@ -320,8 +320,8 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 									Type: linebot.FlexComponentTypeText,
 									Text: "World!",
 								},
-							}
-						}
+							},
+						},
 					}
 					if _, err := app.bot.ReplyMessage(
 						replyToken,
@@ -377,11 +377,11 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 									},
 								},
 							},
-								Type: linebot.FlexContainerTypeBubble
+								Type: linebot.FlexContainerTypeBubble,
 								Body: &linebot.BoxComponent{
 									Type:   linebot.FlexComponentTypeBox,
 									Layout: linebot.FlexBoxLayoutTypeVertical,
-									Contents: []linebot.FlexComponent{
+									Contents: []linebot.FlexComponent{,
 										&linebot.TextComponent{
 											Type: linebot.FlexComponentTypeText,
 											Text: "Second bubble",
