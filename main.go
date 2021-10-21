@@ -446,18 +446,6 @@ type FlexContainer interface {
 	FlexContainer()
 }
 
-// BubbleContainer type
-type BubbleContainer struct {
-	Type      FlexContainerType
-	Size      FlexBubbleSizeType
-	Direction FlexBubbleDirectionType
-	Header    *BoxComponent
-	Hero      FlexComponent
-	Body      *BoxComponent
-	Footer    *BoxComponent
-	Styles    *BubbleStyle
-}
-
 // MarshalJSON method of BubbleContainer
 func (c *BubbleContainer) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
