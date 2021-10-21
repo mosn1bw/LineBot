@@ -601,9 +601,35 @@ func (*SpacerComponent) FlexComponent() {}
 // FlexComponent implements FlexComponent interface
 func (*SpanComponent) FlexComponent() {}
 
-// FlexComponent implements FlexComponent interface
-func (*TextComponent) FlexComponent() {}
-	switch message.Text {
+func callbackHandler(w http.ResponseWriter, r *http.Request) {
+	events, err := bot.ParseRequest(r)
+	log.Print("URL:"  + r.URL.String())
+	
+	if err != nil {
+		if err == linebot.ErrInvalidSignature {
+			w.WriteHeader(400)
+		} else {
+			w.WriteHeader(500)
+		}
+		return
+	}
+
+	for _, event := range events {
+		var replyToken = event.ReplyToken
+
+		var source = event.Source //EventSource		
+		var userId = source.UserID
+		var groupId = source.GroupID
+		var roomId = source.RoomID
+		log.Print("callbackHandler to source UserID/GroupID/RoomID: " + userId + "/" + groupId + "/" + roomId)
+		
+		var sourceId = roomId
+		if sourceId == "" {
+			sourceId = groupId
+			if sourceId == "" {
+				sourceId = userId
+			}
+		}
 	case "profile":
 		if source.UserID != "" {
 			profile, err := app.bot.GetProfile(source.UserID).Do()
