@@ -716,304 +716,9 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 		if _, err := app.bot.ReplyMessage(
 			replyToken,
 			linebot.NewTemplateMessage("Image carousel alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-	    case "flex":
-		// {
-		//   "type": "bubble",
-		//   "body": {
-		//     "type": "box",
-		//     "layout": "horizontal",
-		//     "contents": [
-		//       {
-		//         "type": "text",
-		//         "text": "Hello,"
-		//       },
-		//       {
-		//         "type": "text",
-		//         "text": "World!"
-		//       }
-		//     ]
-		//   }
-		// }
-		contents := &linebot.BubbleContainer{
-			Type: linebot.FlexContainerTypeBubble,
-			Body: &linebot.BoxComponent{
-				Type:   linebot.FlexComponentTypeBox,
-				Layout: linebot.FlexBoxLayoutTypeHorizontal,
-				Contents: []linebot.FlexComponent{
-					&linebot.TextComponent{
-						Type: linebot.FlexComponentTypeText,
-						Text: "Hello,",
-					},
-					&linebot.TextComponent{
-						Type: linebot.FlexComponentTypeText,
-						Text: "World!",
-					},
-				},
-			},
-		}
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewFlexMessage("Flex message alt text", contents),
-		).Do(); err != nil {
-			return err
-		}
-	    case "flex carousel":
-		// {
-		//   "type": "carousel",
-		//   "contents": [
-		//     {
-		//       "type": "bubble",
-		//       "body": {
-		//         "type": "box",
-		//         "layout": "vertical",
-		//         "contents": [
-		//           {
-		//             "type": "text",
-		//             "text": "First bubble"
-		//           }
-		//         ]
-		//       }
-		//     },
-		//     {
-		//       "type": "bubble",
-		//       "body": {
-		//         "type": "box",
-		//         "layout": "vertical",
-		//         "contents": [
-		//           {
-		//             "type": "text",
-		//             "text": "Second bubble"
-		//           }
-		//         ]
-		//       }
-		//     }
-		//   ]
-		// }
-		contents := &linebot.CarouselContainer{
-			Type: linebot.FlexContainerTypeCarousel,
-			Contents: []*linebot.BubbleContainer{
-				&linebot.BubbleContainer{
-					Type: linebot.FlexContainerTypeBubble,
-					Body: &linebot.BoxComponent{
-						Type:   linebot.FlexComponentTypeBox,
-						Layout: linebot.FlexBoxLayoutTypeVertical,
-						Contents: []linebot.FlexComponent{
-							&linebot.TextComponent{
-								Type: linebot.FlexComponentTypeText,
-								Text: "First bubble",
-							},
-						},
-					},
-				},
-				&linebot.BubbleContainer{
-					Type: linebot.FlexContainerTypeBubble,
-					Body: &linebot.BoxComponent{
-						Type:   linebot.FlexComponentTypeBox,
-						Layout: linebot.FlexBoxLayoutTypeVertical,
-						Contents: []linebot.FlexComponent{
-							&linebot.TextComponent{
-								Type: linebot.FlexComponentTypeText,
-								Text: "Second bubble",
-							},
-						},
-					},
-				},
-			},
-		}
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewFlexMessage("Flex message alt text", contents),
-		).Do(); err != nil {
-			return err
-		}
-	    case "flex json":
-		jsonString := `{
-  "type": "bubble",
-  "hero": {
-    "type": "image",
-    "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png",
-    "size": "full",
-    "aspectRatio": "20:13",
-    "aspectMode": "cover",
-    "action": {
-      "type": "uri",
-      "uri": "http://linecorp.com/"
-    }
-  },
-  "body": {
-    "type": "box",
-    "layout": "vertical",
-    "contents": [
-      {
-        "type": "text",
-        "text": "Brown Cafe",
-        "weight": "bold",
-        "size": "xl"
-      },
-      {
-        "type": "box",
-        "layout": "baseline",
-        "margin": "md",
-        "contents": [
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
-          },
-          {
-            "type": "icon",
-            "size": "sm",
-            "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gray_star_28.png"
-          },
-          {
-            "type": "text",
-            "text": "4.0",
-            "size": "sm",
-            "color": "#999999",
-            "margin": "md",
-            "flex": 0
-          }
-        ]
-      },
-      {
-        "type": "box",
-        "layout": "vertical",
-        "margin": "lg",
-        "spacing": "sm",
-        "contents": [
-          {
-            "type": "box",
-            "layout": "baseline",
-            "spacing": "sm",
-            "contents": [
-              {
-                "type": "text",
-                "text": "Place",
-                "color": "#aaaaaa",
-                "size": "sm",
-                "flex": 1
-              },
-              {
-                "type": "text",
-                "text": "Miraina Tower, 4-1-6 Shinjuku, Tokyo",
-                "wrap": True,
-                "color": "#666666",
-                "size": "sm",
-                "flex": 5
-              }
-            ]
-          },
-          {
-            "type": "box",
-            "layout": "baseline",
-            "spacing": "sm",
-            "contents": [
-              {
-                "type": "text",
-                "text": "Time",
-                "color": "#aaaaaa",
-                "size": "sm",
-                "flex": 1
-              },
-              {
-                "type": "text",
-                "text": "10:00 - 23:00",
-                "wrap": True,
-                "color": "#666666",
-                "size": "sm",
-                "flex": 5
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  "footer": {
-    "type": "box",
-    "layout": "vertical",
-    "spacing": "sm",
-    "contents": [
-      {
-        "type": "button",
-        "style": "link",
-        "height": "sm",
-        "action": {
-          "type": "uri",
-          "label": "CALL",
-          "uri": "https://linecorp.com"
-        }
-      },
-      {
-        "type": "button",
-        "style": "link",
-        "height": "sm",
-        "action": {
-          "type": "uri",
-          "label": "WEBSITE",
-          "uri": "https://linecorp.com"
-        }
-      },
-      {
-        "type": "spacer",
-        "size": "sm"
-      }
-    ],
-    "flex": 0
-  }
-}`
-		contents, err := linebot.UnmarshalFlexMessageJSON([]byte(jsonString))
-		if err != nil {
-			return err
-		}
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewFlexMessage("Flex message alt text", contents),
-		).Do(); err != nil {
-			return err
-		}
-	    case "datetime1":
-		template := linebot.NewButtonsTemplate(
-			"", "", "Select date / time !",
-			linebot.NewDatetimePickerTemplateAction("date", "DATE", "date", "", "", ""),
-			linebot.NewDatetimePickerTemplateAction("time", "TIME", "time", "", "", ""),
-			linebot.NewDatetimePickerTemplateAction("datetime", "DATETIME", "datetime", "", "", ""),
-		)
-		if _, err := app.bot.ReplyMessage(
-			replyToken,
-			linebot.NewTemplateMessage("Datetime pickers alt text", template),
-		).Do(); err != nil {
-			return err
-		}
-		if event.Type == linebot.EventTypeMessage {
-			_, silent := silentMap[sourceId]
-			
-                       //switch message := event.Message.(type) {
-			case *linebot.TextMessage:
-
-				//log.Print("ReplyToken[" + replyToken + "] TextMessage: ID(" + message.ID + "), Text(" + message.Text  + "), current silent status=" + strconv.FormatBool(silent) )
-				//if _, err = bot.ReplyMessage(replyToken, linebot.NewTextMessage(message.ID+":"+message.Text+" OK!")).Do(); err != nil {
-				//	log.Print(err)
-				//}
-				
+		        ).Do(); err != nil {
+		 	return err
+		           }
 				if strings.Contains(message.Text, "test") {
 					bot.ReplyMessage(replyToken, linebot.NewTextMessage("success")).Do()
 				} else if "groupid"  == message.Text {
@@ -1115,6 +820,277 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 						linebot.NewTemplateMessage("Carousel alt text", template),
 					).Do(); err != nil {
 						log.Print(err)
+					}
+				} else if "flex" == message.Text {
+					// {
+					//   "type": "bubble",
+					//   "body": {
+					//     "type": "box",
+					//     "layout": "horizontal",
+					//     "contents": [
+					//       {
+					//         "type": "text",
+					//         "text": "Hello,"
+					//       },
+					//       {
+					//         "type": "text",
+					//         "text": "World!"
+					//       }
+					//     ]
+					//   }
+					// }
+					contents := &linebot.BubbleContainer{
+						Type: linebot.FlexContainerTypeBubble,
+						Body: &linebot.BoxComponent{
+							Type:   linebot.FlexComponentTypeBox,
+							Layout: linebot.FlexBoxLayoutTypeHorizontal,
+							Contents: []linebot.FlexComponent{
+								&linebot.TextComponent{
+									Type: linebot.FlexComponentTypeText,
+									Text: "Hello,",
+								},
+								&linebot.TextComponent{
+									Type: linebot.FlexComponentTypeText,
+									Text: "World!",
+								},
+							},
+						},
+					}
+					if _, err := app.bot.ReplyMessage(
+						replyToken,
+						linebot.NewFlexMessage("Flex message alt text", contents),
+					).Do(); err != nil {
+						return err
+					}
+				} else if "flex carousel" == message.Text 
+					// {
+					//   "type": "carousel",
+					//   "contents": [
+					//     {
+					//       "type": "bubble",
+					//       "body": {
+					//         "type": "box",
+					//         "layout": "vertical",
+					//         "contents": [
+					//           {
+					//             "type": "text",
+					//             "text": "First bubble"
+					//           }
+					//         ]
+					//       }
+					//     },
+					//     {
+					//       "type": "bubble",
+					//       "body": {
+					//         "type": "box",
+					//         "layout": "vertical",
+					//         "contents": [
+					//           {
+					//             "type": "text",
+					//             "text": "Second bubble"
+					//           }
+					//         ]
+					//       }
+					//     }
+					//   ]
+					// }
+					contents := &linebot.CarouselContainer{
+						Type: linebot.FlexContainerTypeCarousel,
+						Contents: []*linebot.BubbleContainer{
+							&linebot.BubbleContainer{
+								Type: linebot.FlexContainerTypeBubble,
+								Body: &linebot.BoxComponent{
+									Type:   linebot.FlexComponentTypeBox,
+									Layout: linebot.FlexBoxLayoutTypeVertical,
+									Contents: []linebot.FlexComponent{
+										&linebot.TextComponent{
+											Type: linebot.FlexComponentTypeText,
+											Text: "First bubble",
+										},
+									},
+								},
+							},
+							&linebot.BubbleContainer{
+								Type: linebot.FlexContainerTypeBubble,
+								Body: &linebot.BoxComponent{
+									Type:   linebot.FlexComponentTypeBox,
+									Layout: linebot.FlexBoxLayoutTypeVertical,
+									Contents: []linebot.FlexComponent{
+										&linebot.TextComponent{
+											Type: linebot.FlexComponentTypeText,
+											Text: "Second bubble",
+										},
+									},
+								},
+							},
+						},
+					}
+					if _, err := app.bot.ReplyMessage(
+						replyToken,
+						linebot.NewFlexMessage("Flex message alt text", contents),
+					).Do(); err != nil {
+						return err
+					}
+				} else if "flex json" == message.Text {
+					jsonString := `{
+				"type": "bubble",
+				"hero": {
+				  "type": "image",
+				  "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/01_1_cafe.png",
+				  "size": "full",
+				  "aspectRatio": "20:13",
+				  "aspectMode": "cover",
+				  "action": {
+				    "type": "uri",
+				    "uri": "http://linecorp.com/"
+				  }
+				},
+				"body": {
+				  "type": "box",
+				  "layout": "vertical",
+				  "contents": [
+				    {
+				      "type": "text",
+				      "text": "Brown Cafe",
+				      "weight": "bold",
+				      "size": "xl"
+				    },
+				    {
+				      "type": "box",
+				      "layout": "baseline",
+				      "margin": "md",
+				      "contents": [
+				        {
+				          "type": "icon",
+				          "size": "sm",
+				          "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+				        },
+				        {
+				          "type": "icon",
+				          "size": "sm",
+				          "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+				        },
+				        {
+				          "type": "icon",
+				          "size": "sm",
+				          "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+				        },
+				        {
+				          "type": "icon",
+				          "size": "sm",
+				          "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gold_star_28.png"
+				        },
+				        {
+				          "type": "icon",
+				          "size": "sm",
+				          "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/review_gray_star_28.png"
+				        },
+				        {
+				          "type": "text",
+				          "text": "4.0",
+				          "size": "sm",
+				          "color": "#999999",
+				          "margin": "md",
+				          "flex": 0
+				        }
+				      ]
+				    },
+				    {
+				      "type": "box",
+				      "layout": "vertical",
+				      "margin": "lg",
+				      "spacing": "sm",
+				      "contents": [
+				        {
+				          "type": "box",
+				          "layout": "baseline",
+				          "spacing": "sm",
+				          "contents": [
+				            {
+				              "type": "text",
+				              "text": "Place",
+				              "color": "#aaaaaa",
+				              "size": "sm",
+				              "flex": 1
+				            },
+				            {
+				              "type": "text",
+				              "text": "Miraina Tower, 4-1-6 Shinjuku, Tokyo",
+				              "wrap": True,
+				              "color": "#666666",
+				              "size": "sm",
+				              "flex": 5
+				            }
+				          ]
+				        },
+				        {
+				          "type": "box",
+				          "layout": "baseline",
+				          "spacing": "sm",
+				          "contents": [
+				            {
+				              "type": "text",
+				              "text": "Time",
+				              "color": "#aaaaaa",
+				              "size": "sm",
+				              "flex": 1
+				            },
+				            {
+				              "type": "text",
+				              "text": "10:00 - 23:00",
+				              "wrap": True,
+				              "color": "#666666",
+				              "size": "sm",
+				              "flex": 5
+				            }
+				          ]
+				        }
+				      ]
+				    }
+				  ]
+				},
+				"footer": {
+				  "type": "box",
+				  "layout": "vertical",
+				  "spacing": "sm",
+				  "contents": [
+				    {
+				      "type": "button",
+				      "style": "link",
+				      "height": "sm",
+				      "action": {
+				        "type": "uri",
+				        "label": "CALL",
+				        "uri": "https://linecorp.com"
+				      }
+				    },
+				    {
+				      "type": "button",
+				      "style": "link",
+				      "height": "sm",
+				      "action": {
+				        "type": "uri",
+				        "label": "WEBSITE",
+				        "uri": "https://linecorp.com"
+				      }
+				    },
+				    {
+				      "type": "spacer",
+				      "size": "sm"
+				    }
+				  ],
+				  "flex": 0
+			    	}
+                            }`
+					contents, err := linebot.UnmarshalFlexMessageJSON([]byte(jsonString))
+					if err != nil {
+						return err
+					}
+					if _, err := app.bot.ReplyMessage(
+						replyToken,
+						linebot.NewFlexMessage("Flex message alt text", contents),
+					).Do(); err != nil {
+						return err
 					}
 				} else if "imagemap" == message.Text {
 					if _, err := bot.ReplyMessage(
