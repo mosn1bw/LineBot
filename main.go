@@ -66,7 +66,7 @@ func main() {
 				cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage("早上好！\n 請打「help」")).Do()
 			}
 			if re.Type == linebot.EventTypeFollow {
-				n := time.Now()
+		              //n := time.Now()
 			      //NowT := timeutil.Strftime(&n, "%Y年%m月%d日%H時%M分%S秒")
 				p, _ := cl.GetProfile(re.Source.UserID).Do()
 				cl.ReplyMessage(re.ReplyToken, linebot.NewTextMessage("謝謝你！\n"+p.DisplayName+"呃\n\n")).Do()
