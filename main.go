@@ -179,6 +179,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 							replyToken,
 							linebot.NewTextMessage("Display name: "+profile.DisplayName + ", Status message: "+profile.StatusMessage)).Do(); err != nil {
 								log.Print(err)
+                            }    
 						}
 					} else {
 						bot.ReplyMessage(replyToken, linebot.NewTextMessage("Bot can't use profile API without user ID")).Do()
@@ -301,7 +302,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 						return err
 					}
 				}
-				case "datetime":
+				} else if "datetime" == message.Text {
 					template := linebot.NewButtonsTemplate(
 						"", "", "Select date / time !",
 						linebot.NewDatetimePickerAction("date", "DATE", "date", "", "", ""),
@@ -314,7 +315,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				case "flex":
+				} else if "flex" == message.Text {
 					// {
 					//   "type": "bubble",
 					//   "body": {
@@ -337,7 +338,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 						Body: &linebot.BoxComponent{
 							Type:   linebot.FlexComponentTypeBox,
 							Layout: linebot.FlexBoxLayoutTypeHorizontal,
-							Contents: []linebot.FlexComponent{
+							Contents: []linebot.FlexComponent
 								&linebot.TextComponent{
 									Type: linebot.FlexComponentTypeText,
 									Text: "Hello,",
@@ -355,7 +356,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				case "flex carousel":
+				} else if "flex carousel" == message.Text {
 					// {
 					//   "type": "carousel",
 					//   "contents": [
@@ -395,7 +396,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 								Body: &linebot.BoxComponent{
 									Type:   linebot.FlexComponentTypeBox,
 									Layout: linebot.FlexBoxLayoutTypeVertical,
-									Contents: []linebot.FlexComponent{
+									Contents: []linebot.FlexComponent
 										&linebot.TextComponent{
 											Type: linebot.FlexComponentTypeText,
 											Text: "First bubble",
@@ -403,7 +404,6 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 									},
 								},
 							},
-							{
 								Type: linebot.FlexContainerTypeBubble,
 								Body: &linebot.BoxComponent{
 									Type:   linebot.FlexComponentTypeBox,
@@ -424,7 +424,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				case "flex json":
+				} else if "flex 2" == message.Text {
 					jsonString := `{
 					"type": "bubble",
 					"hero": {
@@ -509,7 +509,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
          	          {
                       "type": "text",
                       "text": "Miraina Tower, 4-1-6 Shinjuku, Tokyo",
-                      "wrap": true,
+                      "wrap": True,
                       "color": "#666666",
            	          "size": "sm",
                       "flex": 5
@@ -531,7 +531,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
     			          {
     			            "type": "text",
     			            "text": "10:00 - 23:00",
-    			            "wrap": true,
+    			            "wrap": True,
     			            "color": "#666666",
     			            "size": "sm",
     			            "flex": 5
@@ -576,7 +576,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
     			  }
     			],
     			"flex": 0
- 			 }
+ 			    }
 		        	}`
 					contents, err := linebot.UnmarshalFlexMessageJSON([]byte(jsonString))
 					if err != nil {
@@ -589,7 +589,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 						return err
 					}
 					
-				case "imagemap":
+				} else if "imagemap" == message.Text {
 					if _, err := app.bot.ReplyMessage(
 						replyToken,
 						linebot.NewImagemapMessage(
@@ -604,7 +604,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				case "imagemap video":
+				} else if "imagemap v" == message.Text {
 					if _, err := app.bot.ReplyMessage(
 						replyToken,
 						linebot.NewImagemapMessage(
@@ -624,7 +624,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				case "quick":
+				} else if "quick" == message.Text {
 					if _, err := app.bot.ReplyMessage(
 						replyToken,
 						linebot.NewTextMessage("Select your favorite food category or send me your location!").
@@ -642,7 +642,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
-				case "bye":
+				} else if "bye" == message.Text {
 					switch source.Type {
 					case linebot.EventSourceTypeUser:
 						return app.replyText(replyToken, "Bot can't leave from 1:1 chat")
@@ -669,6 +669,7 @@ func callbackHandler(w http.ResponseWriter, r *http.Request) {
 					).Do(); err != nil {
 						return err
 					}
+                }   
 				return nil														
 
 				} else if "無恥" == message.Text {
