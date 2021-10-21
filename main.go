@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/line/line-bot-sdk-go/linebot"
-	"github.com/timest/env"
 	"log"
 	"math/rand"
 	"net/http"
@@ -33,7 +32,7 @@ func random(min, mac int) int {
 
 func main() {
 	cfg := new(config)
-	err := env.Fill(cfg)
+	//err := env.Fill(cfg)
 
 	cfg.Secret = os.Getenv("LineSecret")
 	cfg.Token = os.Getenv("LineToken")
