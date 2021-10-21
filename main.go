@@ -564,7 +564,6 @@ type BoxComponent struct {
 	CornerRadius    FlexComponentCornerRadiusType
 	BackgroundColor string
 	BorderColor     string
-	Action          TemplateAction
 	JustifyContent  FlexComponentJustifyContentType
 	AlignItems      FlexComponentAlignItemsType
 	Background      *BoxBackground
